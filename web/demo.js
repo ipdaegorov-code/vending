@@ -37,6 +37,35 @@
   const SNACK = [[11, "Snickers", 100, 8], [12, "Twix", 100, 6], [13, "Kinder Bueno", 120, 5], [21, "Lay's сметана", 120, 6], [22, "Pringles", 180, 3],
     [31, "Вода 0,5", 55, 9], [32, "Кола 0,5", 110, 8], [33, "Red Bull", 190, 4], [41, "Сок яблоко", 90, 4]];
   const MENU = { coffee: COFFEE, tcn: TCN, snack: SNACK };
+  // вместимость ячеек TCN — как в реальной планограмме
+  const TCN_CAP = { 1: 11, 3: 11, 5: 7, 7: 7, 9: 7, 11: 13, 12: 13, 13: 13, 14: 7, 15: 7, 16: 7, 17: 15, 18: 15, 19: 15, 20: 15, 21: 15, 22: 14, 23: 14, 24: 15, 25: 10, 26: 10, 27: 15, 28: 14, 29: 11, 30: 11,
+    31: 10, 32: 15, 33: 15, 34: 15, 35: 12, 36: 16, 37: 16, 38: 13, 39: 13, 40: 13 };
+  const COST = (name, price, kind) => Math.round(price * (kind === "coffee" ? .3 : .55));
+
+  /* ----- демо-хранилище (на сервере будет база) ----- */
+  const ST = { get(k, d) { try { const v = JSON.parse(localStorage.getItem("demo." + k)); return v == null ? d : v; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("demo." + k, JSON.stringify(v)); } catch (e) {} } };
+  function defaultProducts() {
+    const seen = new Map();
+    [["coffee", COFFEE], ["tcn", TCN], ["snack", SNACK]].forEach(([kind, list]) => list.forEach(([, name, price]) => {
+      if (!seen.has(name)) seen.set(name, { id: seen.size + 1, name, price, cost: COST(name, price, kind), kind: kind === "coffee" ? "recipe" : "item" });
+    }));
+    return [...seen.values()];
+  }
+  function products() { return ST.get("products", null) || defaultProducts(); }
+  function defaultPlanogram(m) {
+    const byName = new Map(products().map((p) => [p.name, p.id])), cells = {};
+    MENU[m.kind].forEach(([btn, name]) => { cells[btn] = { pid: byName.get(name), cap: m.kind === "coffee" ? null : (m.kind === "tcn" ? (TCN_CAP[btn] || 6) : 9) }; });
+    return { kind: m.kind === "coffee" ? "coffee" : "snack", cells };
+  }
+  function planograms() { const saved = ST.get("planograms", {}); const out = {}; MACHINES.forEach((m) => out[m.id] = saved[m.id] || defaultPlanogram(m)); return out; }
+  function loadings() {
+    const saved = ST.get("loadings", null); if (saved) return saved;
+    const d = new Date(); d.setDate(d.getDate() - 2); d.setHours(7, 30, 0, 0);
+    const pl = planograms(), out = [];
+    MACHINES.filter((m) => m.kind !== "coffee").forEach((m) => { const cells = {}; Object.entries(pl[m.id].cells).forEach(([b, c]) => cells[b] = c.cap); out.push({ id: "L" + m.id, machine_id: m.id, time: d.toISOString(), cells, note: "Полная загрузка", user: "demo" }); });
+    return out;
+  }
 
   function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   const hash = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
@@ -92,6 +121,26 @@
       refunded.add(opt.body.id);
       try { localStorage.setItem("demo.refunded", JSON.stringify([...refunded])); } catch (e) {}
       return { ok: true };
+    }
+    if (path === "/products") { if (opt.method === "PUT") { ST.set("products", opt.body); return { ok: true }; } return products(); }
+    if (path === "/planograms") return planograms();
+    if (path.startsWith("/planograms/") && opt.method === "PUT") { const all = ST.get("planograms", {}); all[path.split("/")[2]] = opt.body; ST.set("planograms", all); return { ok: true }; }
+    if (path === "/loadings") {
+      if (opt.method === "POST") { const l = loadings(); l.push({ id: "L" + Date.now(), user: "demo", time: new Date().toISOString(), ...opt.body }); ST.set("loadings", l); return { ok: true }; }
+      return loadings();
+    }
+    if (path === "/encashments") {
+      const out = []; MACHINES.forEach((m, i) => { for (let k = (i % 6) + 1; k < 30; k += 7) { const t = new Date(day0(now).getTime() - k * 864e5 + (10 + i % 5) * 36e5);
+        if (t < from || t > to) continue; const cash = salesBetween(new Date(t.getTime() - 7 * 864e5), t).filter((s) => s.machine_id === m.id && s.sell_type === 1).reduce((a, s) => a + s.price, 0);
+        out.push({ id: m.id * 1000 + k, machine_id: m.id, time: t.toISOString(), sum: cash, user: "demo" }); } });
+      return out.sort((a, b) => new Date(b.time) - new Date(a.time));
+    }
+    if (path === "/events") {
+      const ev = [{ machine_id: OFFLINE, time: new Date(now - 3 * 36e5).toISOString(), level: "bad", text: "Терминал не на связи" },
+        { machine_id: 9, time: new Date(now - 5 * 36e5).toISOString(), level: "warn", text: "Ошибка купюроприёмника" },
+        { machine_id: 9, time: new Date(now - 26 * 36e5).toISOString(), level: "ok", text: "Перезагрузка терминала" },
+        { machine_id: 2, time: new Date(now - 50 * 36e5).toISOString(), level: "ok", text: "Открыта дверь (обслуживание)" }];
+      return ev.filter((e) => new Date(e.time) >= from && new Date(e.time) <= to);
     }
     if (path === "/logout" || path === "/login") return { ok: true };
     throw new Error("Нет такого адреса: " + path);

@@ -19,6 +19,7 @@
   --bg:#eaeef2; --surface:#ffffff; --surface-2:#f4f6f9; --ink:#15202b; --muted:#5b6978; --line:#d3dae2;
   --accent:#1d5bd1; --accent-ink:#ffffff; --accent-soft:#e3ebfb; --bar:#9db7ea; --bar-today:#1d5bd1;
   --ok:#1d7a4a; --warn:#a85a07; --bad:#b42318; --warn-soft:#fdf0e1; --bad-soft:#fde8e6;
+  --cell-s:58%; --cell-l:85%; --cell-ink:#15202b; --empty:#f7f9fb;
   --display:"Unbounded","Golos Text",system-ui,sans-serif;
   --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
@@ -26,11 +27,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0e1319; --surface:#171f28; --surface-2:#1d2732; --ink:#e6ecf2; --muted:#93a1b1; --line:#2b3644;
   --accent:#6f9cff; --accent-ink:#0b1220; --accent-soft:#1c2a45; --bar:#34507f; --bar-today:#6f9cff;
-  --ok:#5fd19a; --warn:#f0a85a; --bad:#ff8a7d; --warn-soft:#33240f; --bad-soft:#3a1915; color-scheme:dark;}}
+  --ok:#5fd19a; --warn:#f0a85a; --bad:#ff8a7d; --warn-soft:#33240f; --bad-soft:#3a1915; --cell-s:42%; --cell-l:31%; --cell-ink:#eef3f8; --empty:#131a22; color-scheme:dark;}}
 :root[data-theme="dark"]{
   --bg:#0e1319; --surface:#171f28; --surface-2:#1d2732; --ink:#e6ecf2; --muted:#93a1b1; --line:#2b3644;
   --accent:#6f9cff; --accent-ink:#0b1220; --accent-soft:#1c2a45; --bar:#34507f; --bar-today:#6f9cff;
-  --ok:#5fd19a; --warn:#f0a85a; --bad:#ff8a7d; --warn-soft:#33240f; --bad-soft:#3a1915; color-scheme:dark;}
+  --ok:#5fd19a; --warn:#f0a85a; --bad:#ff8a7d; --warn-soft:#33240f; --bad-soft:#3a1915; --cell-s:42%; --cell-l:31%; --cell-ink:#eef3f8; --empty:#131a22; color-scheme:dark;}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
@@ -203,6 +204,119 @@ tr.refunded .nm{text-decoration:line-through}
 .bar2{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin:12px auto 0;max-width:320px}
 .bar2 span{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+
+/* ---------- навигация ---------- */
+.topnav{display:none;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.topnav button,.botnav button{border:0;background:transparent;display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;color:var(--muted);border-radius:9px;padding:7px 12px}
+.topnav svg,.botnav svg{width:18px;height:18px;fill:currentColor;flex:0 0 auto}
+.topnav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:25;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);
+  padding:4px max(6px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+.botnav button{flex-direction:column;gap:2px;font-size:10.5px;padding:6px 2px}
+.botnav button[aria-current="page"]{color:var(--accent)}
+@media (min-width:900px){.topnav{display:flex}.botnav{display:none!important}}
+@media (max-width:899px){body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}#cfg{display:none}}
+.toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
+@media (min-width:900px){.toast{bottom:calc(20px + env(safe-area-inset-bottom,0px))!important}}
+/* ---------- списки автоматов ---------- */
+.search2{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:15px;color:var(--ink)}
+.mtable{list-style:none;margin:0;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px}
+.mtable .empty{padding:16px}
+.mcard{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) minmax(70px,120px) auto;gap:12px;align-items:center;padding:11px 10px;border-radius:10px}
+.mcard:hover{background:var(--surface-2)}
+.mcard:focus-visible{outline:2px solid var(--accent)}
+.mcard .t{display:flex;flex-direction:column;min-width:0}
+.mcard .n{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .loc{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .r{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.mcard .r .num{font-weight:700}
+.mcard small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.fill{display:flex;flex-direction:column;gap:3px}
+.fbar{display:block;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.fbar i{display:block;height:100%;background:var(--ok)}
+.fbar.warn i{background:var(--warn)}
+.fbar.bad i{background:var(--bad)}
+.muted{color:var(--muted)}
+@media (max-width:560px){.mcard{grid-template-columns:10px minmax(0,1fr) auto;row-gap:6px}.mcard .fill{grid-column:2 / 4;grid-row:2;flex-direction:row;align-items:center;gap:8px}.mcard .fill .fbar{flex:1}}
+.ldrow{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center}
+.ldrow .mcard{grid-template-columns:minmax(0,1fr) minmax(70px,120px)}
+@media (max-width:560px){.ldrow .mcard{grid-template-columns:minmax(0,1fr)}.ldrow .mcard .fill{grid-column:1;grid-row:2}}
+.chk{display:grid;place-items:center;height:100%}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.setlist{display:flex;flex-direction:column;padding:0 8px}
+.setlist .mcard{grid-template-columns:minmax(0,1fr) auto}
+/* ---------- карточка автомата ---------- */
+.back{align-self:flex-start;border:0;background:none;color:var(--accent);font-weight:600;font-size:14.5px;padding:2px 0}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap}
+.mstat{display:flex;align-items:center;gap:8px;font-weight:600;margin-top:2px}
+.mnum{display:flex;flex-direction:column;align-items:flex-end}
+.mnum .num{font-size:22px;font-weight:700}
+.mnum small{color:var(--muted);font-size:12px}
+.mpage .mpick,.mpage .dayh>div:first-child{display:none!important}
+.mpage .dayh{justify-content:flex-end}
+.stockhead{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:14px 16px}
+@media (max-width:560px){.stockhead{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi .v.sm{font-size:13.5px}
+.sgrid{display:flex;flex-direction:column;gap:5px;padding:0 12px 12px}
+.srow{display:flex;gap:4px}
+.scell{flex:1 1 0;min-width:0;position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);padding:4px 4px 3px;min-height:58px;display:flex;flex-direction:column;justify-content:space-between;container-type:inline-size}
+.scell i{position:absolute;left:0;right:0;bottom:0;background:var(--ok);opacity:.22;z-index:0}
+.scell.warn i{background:var(--warn);opacity:.3}
+.scell.bad i{background:var(--bad);opacity:.3}
+.scell.bad{border-color:var(--bad)}
+.scell>*:not(i){position:relative;z-index:1}
+.scell b{font-family:var(--mono);font-size:10.5px}
+.scell span{font-size:11px;font-weight:600;line-height:1.1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.scell em{font-style:normal;font-family:var(--mono);font-size:10.5px;font-weight:700}
+@container (max-width:44px){.scell span{display:none}}
+.evlist{list-style:none;margin:0;padding:6px 16px 14px;display:flex;flex-direction:column}
+.evlist li{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.evlist time{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.ldlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ldlist li{display:grid;grid-template-columns:34px minmax(0,1fr) 72px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.ldlist b{font-family:var(--mono);font-size:13px}
+.ldlist span{display:flex;flex-direction:column;font-size:14px;min-width:0}
+.ldlist small{color:var(--muted);font-size:12px}
+.ldlist input,.costin{width:72px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);text-align:right;font-family:var(--mono);font-size:14px;color:var(--ink)}
+.fl{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+/* ---------- редактор планограммы ---------- */
+.pe{padding:12px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.pe-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.brushes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.brushes::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;white-space:nowrap}
+.chip small{color:var(--muted);font-family:var(--mono)}
+.chip .sw{width:18px;height:18px;border-radius:50%;background:hsl(var(--h) var(--cell-s) var(--cell-l));border:1px solid rgb(0 0 0 / .1)}
+.chip.eraser .sw{background:var(--empty);border:1.5px dashed var(--muted)}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.chip.add{color:var(--accent);padding-left:10px}
+.hint2{margin:0;font-size:13px;color:var(--muted)}
+.hint2 b{color:var(--ink)}
+.pe-machine{display:flex;flex-direction:column;gap:5px}
+.pe-shelf{display:grid;grid-template-columns:22px minmax(0,1fr);gap:5px}
+.pe-sl{display:grid;place-items:center;font-family:var(--display);font-size:12px;color:var(--muted)}
+.pe-row{display:flex;gap:4px;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.pe-cell{flex:1 1 0;min-width:0;container-type:inline-size;position:relative;border-radius:8px;min-height:58px;padding:4px 4px 3px;cursor:pointer;
+  background:hsl(var(--h) var(--cell-s) var(--cell-l));color:var(--cell-ink);border:1px solid rgb(0 0 0 / .07);display:flex;flex-direction:column;justify-content:space-between}
+.pe-cell.empty{background:var(--empty);border:1.5px dashed var(--line);color:var(--muted)}
+.pe-cell .code{font-family:var(--mono);font-size:10.5px;font-weight:700;opacity:.75}
+.pe-cell .nm{font-size:11px;font-weight:600;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.pe-cell .cap{font-family:var(--mono);font-size:10.5px;font-weight:700;opacity:.8}
+.pe-cell.changed::after{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.pe-cell:focus-visible{outline:2px solid var(--accent)}
+@container (max-width:46px){.pe-cell .nm{font-size:9.5px;-webkit-line-clamp:1}}
+.stepper{display:flex;align-items:center;gap:10px;justify-content:center}
+.stepper button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:22px;font-weight:700;color:var(--ink)}
+.stepper output{font-family:var(--mono);font-size:34px;font-weight:700;min-width:70px;text-align:center}
+.cat2{list-style:none;margin:0;padding:0}
+.cat2 button{width:100%;text-align:left;border:0;background:none;padding:11px 8px;border-radius:9px;font-size:14.5px;color:var(--ink)}
+.cat2 button:hover{background:var(--surface-2)}
+.changes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.changes li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:baseline}
+.changes .k{font-family:var(--mono);font-size:12px;font-weight:700;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn:disabled{opacity:.45;cursor:default}
 </style>
 
 </head><body>
@@ -210,8 +324,9 @@ tr.refunded .nm{text-decoration:line-through}
   <header class="top">
     <div>
       <div class="eyebrow" id="fresh">Вендиста</div>
-      <h1>Обзор</h1>
+      <h1 id="pageTitle">Обзор</h1>
     </div>
+    <nav class="topnav" id="topNav" aria-label="Разделы"></nav>
     <div style="display:flex;gap:8px;flex-wrap:wrap" id="topBtns" hidden>
       <button class="btn" id="reload" type="button">Обновить</button>
       <button class="btn" id="cfg" type="button">Настроить экран</button>
@@ -220,6 +335,7 @@ tr.refunded .nm{text-decoration:line-through}
   </header>
   <div id="blocks" class="wrap" style="max-width:none;margin:0"></div>
 </div>
+<nav class="botnav" id="botNav" aria-label="Разделы" hidden></nav>
 <div id="sheetRoot"></div>
 
 <script>
@@ -274,6 +390,7 @@ async function loadAll(progress){
     addSales(toItems(await api("/sales",{from:from.toISOString(),to:to.toISOString()})));
     progress&&progress(++done,parts.length);
   }
+  await loadDB();
   index();loadedAt=new Date();
 }
 async function refreshToday(){
@@ -486,7 +603,7 @@ function dayPanel(){
     ${body}`;
 }
 const RENDER={summary:blockSummary,chart:blockChart,attention:blockAttention,machines:blockMachines};
-function render(){
+function renderOverview(){
   $("blocks").innerHTML=prefs.order.filter(b=>!prefs.hidden.includes(b)).map(b=>RENDER[b]()).join("")||
     `<section class="panel"><div class="ph"><h2>Экран пуст</h2></div><p style="padding:0 16px 16px;color:var(--muted)">Включите нужные блоки в «Настроить экран».</p></section>`;
 }
@@ -592,8 +709,336 @@ function openCfg(){
   });
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("scrim")){$("sheetRoot").innerHTML="";render()}});
+/* ================= РАЗДЕЛЫ ПРИЛОЖЕНИЯ (как в Телеметроне) ================= */
+let DB={products:[],planograms:{},loadings:[]};
+async function loadDB(){
+  const safe=async(p,d)=>{try{return await api(p)}catch(e){if(e instanceof NeedLogin)throw e;return d}};
+  const [products,planograms,loadings]=await Promise.all([safe("/products",[]),safe("/planograms",{}),safe("/loadings",[])]);
+  DB={products,planograms,loadings};btnIdx=null;
+}
+const prodById=id=>DB.products.find(p=>p.id===id);
+const prodName=id=>(prodById(id)||{}).name||"—";
+const shortName=n=>String(n||"").replace(/\s+\d+([,.]\d+)?\s*(л|г|мл)\.?$/i,"").replace(/^(\d+[,.]?\d*\s*(Л|Г|МЛ)\.?\s*)/i,"").slice(0,14);
+const numSort=(a,b)=>(+a)-(+b);
+const shelfOf=b=>Math.floor((+b)/10);
+let route=LS.get("route")||"overview";
+function go(r){route=r;LS.set("route",r);render();window.scrollTo(0,0)}
+
+/* ---------- остатки: последняя загрузка ячейки минус продажи по её кнопке ---------- */
+let btnIdx=null,btnIdxAt=null;
+function buildBtnIdx(){btnIdx={};Object.values(RAW).forEach(s=>{const k=s.m.id+"|"+s.layout;(btnIdx[k]||(btnIdx[k]=[])).push(s.t)});btnIdxAt=loadedAt}
+function soldSince(m,btn,t0){if(!btnIdx||btnIdxAt!==loadedAt)buildBtnIdx();return (btnIdx[m.id+"|"+btn]||[]).filter(t=>t>t0).length}
+function stockOf(m){
+  const pl=DB.planograms[m.vid]; if(!pl||pl.kind==="coffee")return null;
+  const loads=DB.loadings.filter(l=>l.machine_id===m.vid).sort((a,b)=>new Date(a.time)-new Date(b.time));
+  const cells=Object.keys(pl.cells).sort(numSort).map(b=>{const c=pl.cells[b];let base=null,t0=null;
+    loads.forEach(l=>{if(l.cells&&l.cells[b]!=null){base=+l.cells[b];t0=new Date(l.time)}});
+    const level=base==null?null:Math.max(0,base-soldSince(m,b,t0));
+    return {btn:b,pid:c.pid,name:prodName(c.pid),cap:c.cap||0,level}});
+  const known=cells.filter(c=>c.level!=null&&c.cap);
+  const cap=known.reduce((a,c)=>a+c.cap,0),lvl=known.reduce((a,c)=>a+Math.min(c.level,c.cap),0);
+  return {cells,cap,level:lvl,pct:cap?Math.round(lvl/cap*100):null,empty:known.filter(c=>c.level===0).length,
+    need:known.reduce((a,c)=>a+Math.max(0,c.cap-c.level),0),last:loads.length?new Date(loads[loads.length-1].time):null};
+}
+const fillCls=p=>p==null?"":p<25?"bad":p<50?"warn":"ok";
+
+/* ---------- навигация ---------- */
+const NAV=[["overview","Обзор","M3 13h7V3H3v10zm0 8h7v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"],
+  ["machines","Автоматы","M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v10h7V5H7zm9 1v2h2V6h-2zm0 4v2h2v-2h-2zM7 18v1h10v-1H7z"],
+  ["loading","Загрузка","M20 8h-3V4H3a2 2 0 0 0-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4zM6 18.5A1.5 1.5 0 1 1 6 15.5a1.5 1.5 0 0 1 0 3zm13.5-9 1.96 2.5H17V9.5h2.5zM18 18.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"],
+  ["reports","Отчёты","M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"],
+  ["settings","Настройки","M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"]];
+function navHtml(){const base=route.split(":")[0]==="machine"?"machines":route.split(":")[0];
+  return NAV.map(([r,l,d])=>`<button type="button" data-go="${r}" aria-current="${base===r?"page":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></button>`).join("")}
+function chrome(title){
+  $("pageTitle").textContent=title;
+  $("cfg").hidden=route!=="overview";
+  $("topNav").innerHTML=navHtml();$("botNav").innerHTML=navHtml();$("botNav").hidden=false;
+}
+
+/* ---------- раздел «Автоматы» ---------- */
+let mSearch="";
+function pageMachines(){
+  chrome("Автоматы");
+  const q=mSearch.trim().toLowerCase();
+  const ms=gMachines().filter(m=>!q||(m.name+" "+m.loc+" "+m.model).toLowerCase().includes(q));
+  const rows=ms.map(m=>{const t=sales(m,0),s=status(m),st=stockOf(m),d=delta(sum(t),sum(weekAgo(sales(m,7),0)));
+    return {m,t,s,st,d}}).sort((a,b)=>(b.s.cls==="bad")-(a.s.cls==="bad")||sum(b.t)-sum(a.t));
+  return `<section class="panel"><div class="ph"><h2>Все автоматы</h2><small>${ms.length} шт · сегодня</small></div>
+    ${chipsHtml()}
+    <div style="padding:0 16px 10px"><input class="search2" id="mSearch" type="search" placeholder="Поиск по названию или месту" value="${esc(mSearch)}" autocomplete="off"></div>
+    <ul class="mtable">${rows.map(({m,t,s,st,d})=>`<li><button type="button" class="mcard" data-open="${m.id}">
+      <span class="st ${s.cls}"></span>
+      <span class="t"><span class="n">${esc(m.name)}<span class="type">${m.type==="snack"?"снек":"кофе"}</span></span><span class="loc">${esc(m.loc)} · ${esc(s.text)}</span></span>
+      <span class="fill">${st?`<span class="fbar ${fillCls(st.pct)}"><i style="width:${st.pct||0}%"></i></span><small>${st.pct}%${st.empty?` · пусто ${st.empty}`:""}</small>`:`<small class="muted">остатки не ведутся</small>`}</span>
+      <span class="r"><span class="num">${rub(sum(t))}</span><small>${live(t).length} шт ${dHtml(d)}</small></span></button></li>`).join("")||`<li class="empty">Ничего не нашлось</li>`}</ul></section>`;
+}
+
+/* ---------- карточка автомата ---------- */
+let mTab=LS.get("mTab")||"sales", evCache={};
+function pageMachine(id){
+  const m=M.find(x=>x.id===id); if(!m){route="machines";return pageMachines()}
+  chrome(m.name);
+  const s=status(m),st=stockOf(m);
+  if(prefs.sel!==m.id){prefs.sel=m.id;prefs.view="summary"}
+  const tabs=[["sales","Продажи"],["stock","Остатки"],["plan","Планограмма"],["events","События"]];
+  let body="";
+  if(mTab==="sales")body=`<div class="day mpage" id="day">${dayPanel()}</div>`;
+  else if(mTab==="stock")body=stockPanel(m,st);
+  else if(mTab==="plan")body=`<div id="pe">${planEditorHtml(m)}</div>`;
+  else body=eventsPanel(m);
+  return `<button type="button" class="back" data-go="machines">‹ Все автоматы</button>
+  <section class="panel mhead"><div><div class="eyebrow">${esc(m.model)} · ${esc(m.loc)}</div>
+    <div class="mstat"><span class="st ${s.cls}"></span>${esc(s.text)}${st?` · заполнено ${st.pct}%`:""}</div></div>
+    <div class="mnum"><span class="num">${rub(sum(sales(m,0)))}</span><small>сегодня</small></div></section>
+  <div class="seg tabs" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-mtab="${v}" aria-pressed="${mTab===v}" aria-selected="${mTab===v}">${l}</button>`).join("")}</div>
+  <section class="panel" style="padding-bottom:4px">${body}</section>`;
+}
+function stockPanel(m,st){
+  if(!st)return `<div class="empty" style="padding:24px">Для кофейных автоматов остатки по ячейкам не ведутся. Позже добавим учёт ингредиентов.</div>`;
+  const shelves={};st.cells.forEach(c=>(shelves[shelfOf(c.btn)]||(shelves[shelfOf(c.btn)]=[])).push(c));
+  return `<div class="stockhead">
+      <div class="kpi"><div class="l">Заполнено</div><div class="v">${st.pct}%</div></div>
+      <div class="kpi"><div class="l">Пустых ячеек</div><div class="v">${st.empty}</div></div>
+      <div class="kpi"><div class="l">Догрузить</div><div class="v">${st.need} шт</div></div>
+      <div class="kpi"><div class="l">Последняя загрузка</div><div class="v sm">${st.last?st.last.toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—"}</div></div>
+    </div>
+    <div class="sgrid">${Object.keys(shelves).sort(numSort).map(k=>`<div class="srow">${shelves[k].map(c=>{const p=c.cap?Math.round((c.level||0)/c.cap*100):0;
+      return `<div class="scell ${fillCls(c.level==null?null:p)}" title="${esc(c.name)}"><b>${c.btn}</b><span>${esc(shortName(c.name))}</span><em>${c.level==null?"?":c.level}/${c.cap}</em><i style="height:${Math.min(100,p)}%"></i></div>`}).join("")}</div>`).join("")}</div>
+    <div class="row-btns" style="padding:4px 16px 14px"><button type="button" class="btn primary" data-loadm="${m.id}">Отметить загрузку</button></div>`;
+}
+function eventsPanel(m){
+  const key=m.vid; const c=evCache[key];
+  if(!c){evCache[key]="loading";const from=dayDate(29).toISOString(),to=new Date().toISOString();
+    Promise.all([api("/events",{from,to}).catch(()=>[]),api("/encashments",{from,to}).catch(()=>[])]).then(([ev,en])=>{
+      const loads=DB.loadings.filter(l=>l.machine_id===m.vid).map(l=>({time:l.time,level:"ok",text:"Загрузка: "+(l.note||Object.keys(l.cells||{}).length+" ячеек")}));
+      evCache[key]=[...ev.filter(e=>e.machine_id===m.vid),...en.filter(e=>e.machine_id===m.vid).map(e=>({time:e.time,level:"ok",text:"Инкассация: "+rub(e.sum)})),...loads]
+        .sort((a,b)=>new Date(b.time)-new Date(a.time));render()});
+    return `<div class="empty">Загружаю события…</div>`}
+  if(c==="loading")return `<div class="empty">Загружаю события…</div>`;
+  return c.length?`<ul class="evlist">${c.map(e=>`<li><span class="st ${e.level==="ok"?"":e.level}"></span><span>${esc(e.text)}</span><time>${new Date(e.time).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</time></li>`).join("")}</ul>`:`<div class="empty">За 30 дней событий нет</div>`;
+}
+function openLoading(m){
+  const st=stockOf(m); if(!st)return;
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:90vh;overflow:auto">
+    <h3>Загрузка: ${esc(m.name)}</h3><p>Укажите, сколько стало в каждой ячейке после загрузки. По умолчанию — полная.</p>
+    <div class="row-btns" style="justify-content:flex-start"><button type="button" class="btn" id="ldFull">Всё до полного</button><button type="button" class="btn ghost" id="ldNow">Как сейчас</button></div>
+    <ul class="ldlist">${st.cells.map(c=>`<li><b>${c.btn}</b><span>${esc(c.name)}<small>было ${c.level==null?"?":c.level} из ${c.cap}</small></span>
+      <input type="number" inputmode="numeric" min="0" max="${c.cap*2}" id="ld-${c.btn}" data-ld="${c.btn}" value="${c.cap}" data-now="${c.level??0}" data-cap="${c.cap}" aria-label="Ячейка ${c.btn}: стало"></li>`).join("")}</ul>
+    <input class="search2" id="ldNote" placeholder="Комментарий (необязательно)">
+    <div class="row-btns"><button type="button" class="btn" id="ldNo">Отмена</button><button type="button" class="btn primary" id="ldYes">Сохранить загрузку</button></div></div></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};
+  $("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
+  $("ldNo").onclick=close;
+  $("ldFull").onclick=()=>document.querySelectorAll("[data-ld]").forEach(i=>i.value=i.dataset.cap);
+  $("ldNow").onclick=()=>document.querySelectorAll("[data-ld]").forEach(i=>i.value=i.dataset.now);
+  $("ldYes").onclick=async()=>{const cells={};let added=0;document.querySelectorAll("[data-ld]").forEach(i=>{cells[i.dataset.ld]=Math.max(0,+i.value||0);added+=Math.max(0,cells[i.dataset.ld]-(+i.dataset.now))});
+    try{await api("/loadings",null,{method:"POST",body:{machine_id:m.vid,cells,note:$("ldNote").value.trim()||"Загружено "+added+" шт"}});
+      DB.loadings=await api("/loadings");evCache={};close();toast("Загрузка сохранена: +"+added+" шт");render()}
+    catch(e){toast("Не сохранилось: "+e.message)}};
+}
+
+/* ---------- раздел «Загрузка» ---------- */
+let ldPick=null;
+function pageLoading(){
+  chrome("Загрузка");
+  const rows=gMachines().map(m=>({m,st:stockOf(m)})).filter(x=>x.st).sort((a,b)=>a.st.pct-b.st.pct);
+  if(!ldPick)ldPick=new Set(rows.filter(x=>x.st.pct<70||x.st.empty).map(x=>x.m.id));
+  const need={};rows.filter(x=>ldPick.has(x.m.id)).forEach(({st})=>st.cells.forEach(c=>{if(c.level==null)return;const n=Math.max(0,c.cap-c.level);if(!n)return;(need[c.name]||(need[c.name]={n:0,cells:0})).n+=n;need[c.name].cells++}));
+  const list=Object.entries(need).sort((a,b)=>b[1].n-a[1].n), total=list.reduce((a,[,v])=>a+v.n,0);
+  return `${chipsHtml()}
+  <section class="panel"><div class="ph"><h2>Что взять с собой</h2><small>${ldPick.size} автом. · ${total} шт</small></div>
+    ${list.length?`<div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Ячеек</th><th class="r">Взять</th></tr></thead><tbody>${list.map(([n,v])=>`<tr><td>${esc(n)}</td><td class="r">${v.cells}</td><td class="r"><b>${v.n}</b></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Отметьте автоматы ниже</div>`}</section>
+  <section class="panel"><div class="ph"><h2>Автоматы</h2><small>сначала самые пустые</small></div>
+    <ul class="mtable">${rows.map(({m,st})=>`<li class="ldrow"><label class="chk"><input type="checkbox" data-pick="${m.id}" id="lp-${m.id}" ${ldPick.has(m.id)?"checked":""} aria-label="Грузить ${esc(m.name)}"></label>
+      <button type="button" class="mcard" data-open="${m.id}" data-tab="stock"><span class="t"><span class="n">${esc(m.name)}</span><span class="loc">${esc(m.loc)} · догрузить ${st.need} шт${st.empty?` · пусто ${st.empty}`:""}</span></span>
+      <span class="fill"><span class="fbar ${fillCls(st.pct)}"><i style="width:${st.pct}%"></i></span><small>${st.pct}%</small></span></button></li>`).join("")||`<li class="empty">Нет снековых автоматов с планограммой</li>`}</ul></section>`;
+}
+
+/* ---------- раздел «Отчёты» ---------- */
+let rp=LS.get("rp")||7;
+function costOf(s){const pl=DB.planograms[s.m.vid];const c=pl&&pl.cells[s.layout];const p=c?prodById(c.pid):DB.products.find(x=>x.name===s.name);return p?+p.cost||0:0}
+function pageReports(){
+  chrome("Отчёты");
+  const ks=rp===1?[0]:rp===-1?[1]:Array.from({length:rp},(_,i)=>i);
+  const ms=gMachines(), list=ks.flatMap(k=>ms.flatMap(m=>live(sales(m,k))));
+  const tot=list.reduce((a,s)=>a+s.price,0), cash=list.filter(s=>s.cash).reduce((a,s)=>a+s.price,0), cost=list.reduce((a,s)=>a+costOf(s),0);
+  const byM=new Map(),byP=new Map();
+  list.forEach(s=>{const c=costOf(s);
+    const a=byM.get(s.m)||{n:0,v:0,cash:0,cost:0};a.n++;a.v+=s.price;if(s.cash)a.cash+=s.price;a.cost+=c;byM.set(s.m,a);
+    const b=byP.get(s.name)||{n:0,v:0,cost:0};b.n++;b.v+=s.price;b.cost+=c;byP.set(s.name,b)});
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  if(!enCache[rp]){enCache[rp]="loading";const from=dayDate(ks[ks.length-1]).toISOString(),to=(ks[0]===0?new Date():dayDate(ks[0]-1)).toISOString();
+    api("/encashments",{from,to}).then(r=>{enCache[rp]=r;if(route==="reports")render()}).catch(()=>{enCache[rp]=[]})}
+  const en=Array.isArray(enCache[rp])?enCache[rp].filter(e=>ms.some(m=>m.vid===e.machine_id)):null;
+  return `<div class="seg" role="group" aria-label="Период" style="align-self:flex-start">${[[1,"Сегодня"],[-1,"Вчера"],[7,"7 дней"],[30,"30 дней"]].map(([v,l])=>`<button type="button" data-rp="${v}" aria-pressed="${rp===v}">${l}</button>`).join("")}</div>
+  ${chipsHtml()}
+  <section class="sum">
+    <div><span class="l">Выручка</span><span class="v">${rub(Math.round(tot))}</span><span class="s">${list.length} продаж · ср. чек ${list.length?Math.round(tot/list.length):0} ₽</span></div>
+    <div><span class="l">Прибыль</span><span class="v">${rub(Math.round(tot-cost))}</span><span class="s">себестоимость ${rub(Math.round(cost))} · наценка ${pct(tot-cost,cost)}</span></div>
+    <div><span class="l">Безнал</span><span class="v">${rub(Math.round(tot-cash))}</span><span class="s">${pct(tot-cash,tot)} выручки</span></div>
+    <div><span class="l">Наличные</span><span class="v">${rub(Math.round(cash))}</span><span class="s">${pct(cash,tot)} выручки</span></div>
+  </section>
+  <section class="panel"><div class="ph"><h2>По автоматам</h2></div><div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Автомат</th><th class="r">Шт</th><th class="r">Выручка</th><th class="r">Прибыль</th></tr></thead><tbody>
+    ${[...byM].sort((a,b)=>b[1].v-a[1].v).map(([m,a])=>`<tr><td>${esc(m.name)}<div class="card">нал ${rub(Math.round(a.cash))}</div></td><td class="r">${a.n}</td><td class="r">${rub(Math.round(a.v))}</td><td class="r">${rub(Math.round(a.v-a.cost))}</td></tr>`).join("")}</tbody></table></div></section>
+  <section class="panel"><div class="ph"><h2>По товарам</h2><small>наценка = прибыль / себестоимость</small></div><div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Шт</th><th class="r">Выручка</th><th class="r">Наценка</th></tr></thead><tbody>
+    ${[...byP].sort((a,b)=>b[1].v-a[1].v).map(([n,a])=>`<tr><td>${esc(n)}</td><td class="r">${a.n}</td><td class="r">${rub(Math.round(a.v))}</td><td class="r">${pct(a.v-a.cost,a.cost)}</td></tr>`).join("")}</tbody></table></div></section>
+  <section class="panel"><div class="ph"><h2>Инкассации</h2></div>${en==null?`<div class="empty">Загружаю…</div>`:en.length?`<ul class="evlist">${en.map(e=>{const m=M.find(x=>x.vid===e.machine_id);return `<li><span class="st"></span><span>${esc(m?m.name:"")}: <b>${rub(Math.round(e.sum))}</b></span><time>${new Date(e.time).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</time></li>`}).join("")}</ul>`:`<div class="empty">Инкассаций за период нет</div>`}</section>`;
+}
+let enCache={};
+
+/* ---------- раздел «Настройки» ---------- */
+let sTab=LS.get("sTab")||"products", prodQ="";
+function pageSettings(){
+  chrome("Настройки");
+  const tabs=[["products","Товары"],["plans","Планограммы"],["other","Группы и экран"]];
+  let body="";
+  if(sTab==="products"){
+    const lastPrice=new Map();Object.values(RAW).forEach(s=>lastPrice.set(s.name,s.price));
+    const q=prodQ.trim().toLowerCase(), ps=DB.products.filter(p=>!q||p.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"ru"));
+    body=`<div class="ph"><h2>Товары и себестоимость</h2><small>${DB.products.length} шт</small></div>
+      <div style="padding:0 16px 10px;display:flex;gap:8px"><input class="search2" id="prodQ" type="search" placeholder="Поиск товара" value="${esc(prodQ)}" autocomplete="off"><button type="button" class="btn" id="prodAdd">+ Товар</button></div>
+      <div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Цена в автомате</th><th class="r">Себестоимость</th></tr></thead><tbody>
+      ${ps.map(p=>{const pr=lastPrice.get(p.name);return `<tr><td>${esc(p.name)}${p.kind==="recipe"?`<div class="card">рецепт</div>`:""}</td><td class="r">${pr!=null?pr+" ₽":"—"}</td>
+        <td class="r"><input class="costin" type="number" inputmode="decimal" min="0" step="0.01" id="cost-${p.id}" data-cost="${p.id}" value="${p.cost??""}" aria-label="Себестоимость ${esc(p.name)}"> ₽</td></tr>`}).join("")}</tbody></table></div>
+      <p class="txnote" style="padding:0 16px 14px">Цена берётся из продаж — её задаёт автомат. Себестоимость нужна для прибыли в отчётах.</p>`;
+  } else if(sTab==="plans"){
+    const ms=M.filter(m=>DB.planograms[m.vid]);
+    body=`<div class="ph"><h2>Планограммы</h2><small>какой товар в какой ячейке</small></div>
+      <ul class="mtable">${ms.map(m=>{const pl=DB.planograms[m.vid],n=Object.keys(pl.cells).length,pr=new Set(Object.values(pl.cells).map(c=>c.pid)).size;
+        return `<li><button type="button" class="mcard" data-open="${m.id}" data-tab="plan"><span class="t"><span class="n">${esc(m.name)}<span class="type">${pl.kind==="coffee"?"кофе":"снек"}</span></span><span class="loc">${esc(m.loc)} · ${n} ${pl.kind==="coffee"?"кнопок":"ячеек"} · ${pr} товаров</span></span><span class="r"><small>Изменить ›</small></span></button></li>`}).join("")}</ul>`;
+  } else {
+    body=`<div class="ph"><h2>Группы и главный экран</h2></div>
+      <div class="setlist"><button type="button" class="mcard" id="setGroups"><span class="t"><span class="n">Группы автоматов</span><span class="loc">${groups().length} групп · какие автоматы в какой группе</span></span><span class="r"><small>›</small></span></button>
+      <button type="button" class="mcard" id="setScreen"><span class="t"><span class="n">Главный экран</span><span class="loc">какие блоки показывать и в каком порядке</span></span><span class="r"><small>›</small></span></button></div>
+      <p class="txnote" style="padding:8px 16px 16px">${me&&me.demo?"Демо-режим: данные выдуманные, изменения хранятся только на этом устройстве.":me&&me.test?"Тестовый режим: в Вендисте ничего не меняется.":""}</p>`;
+  }
+  return `<div class="seg tabs" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-stab="${v}" aria-pressed="${sTab===v}" aria-selected="${sTab===v}">${l}</button>`).join("")}</div><section class="panel">${body}</section>`;
+}
+async function saveProducts(){try{await api("/products",null,{method:"PUT",body:DB.products});toast("Сохранено")}catch(e){toast("Не сохранилось: "+e.message)}}
+function openProductAdd(){
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><form class="sheet" id="padd"><h3>Новый товар</h3>
+    <label class="fl" for="pa-name">Название<input id="pa-name" required class="search2"></label>
+    <label class="fl" for="pa-cost">Себестоимость, ₽<input id="pa-cost" type="number" step="0.01" min="0" class="search2"></label>
+    <div class="row-btns"><button type="button" class="btn" id="paNo">Отмена</button><button class="btn primary" type="submit">Добавить</button></div></form></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};$("paNo").onclick=close;$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
+  $("padd").addEventListener("submit",async e=>{e.preventDefault();const id=Math.max(0,...DB.products.map(p=>p.id))+1;
+    DB.products.push({id,name:$("pa-name").value.trim(),cost:+$("pa-cost").value||0,kind:"item"});await saveProducts();close();render()});
+  $("pa-name").focus();
+}
+
+/* ---------- редактор планограммы: сначала товар, потом ячейки ---------- */
+let PE=null; // {mid, cells, saved, brush, mode, hist}
+function peInit(m){const pl=DB.planograms[m.vid]||{kind:"snack",cells:{}};
+  if(!PE||PE.mid!==m.id){const cells=JSON.parse(JSON.stringify(pl.cells));PE={mid:m.id,kind:pl.kind,cells,saved:JSON.stringify(cells),brush:null,mode:"assign",hist:[]};
+    const first=Object.values(cells).find(c=>c.pid);PE.brush=first?first.pid:null}return PE}
+const peDirty=()=>PE&&JSON.stringify(PE.cells)!==PE.saved;
+function peDiff(){const a=JSON.parse(PE.saved),b=PE.cells,out=[];
+  Object.keys({...a,...b}).sort(numSort).forEach(k=>{const x=a[k]||{},y=b[k]||{};if(x.pid!==y.pid)out.push(`<li><span class="k">${k}</span><span>${esc(prodName(x.pid))} → <b>${esc(prodName(y.pid))}</b></span></li>`);
+    if(x.cap!==y.cap)out.push(`<li><span class="k">${k}</span><span>вместимость ${x.cap??"—"} → <b>${y.cap??"—"}</b></span></li>`)});return out}
+function planEditorHtml(m){
+  const pe=peInit(m), coffee=pe.kind==="coffee";
+  const used=[...new Set(Object.values(pe.cells).map(c=>c.pid).filter(Boolean))];
+  const h=pid=>((pid*47)%360);
+  const cellsOf=pid=>Object.keys(pe.cells).filter(k=>pe.cells[k].pid===pid).sort(numSort);
+  const shelves={};Object.keys(pe.cells).sort(numSort).forEach(k=>(shelves[shelfOf(k)]||(shelves[shelfOf(k)]=[])).push(k));
+  const diff=peDiff().length;
+  return `<div class="pe">
+    <div class="pe-top"><div class="seg" role="group" aria-label="Режим">${coffee?"":`<button type="button" data-pemode="assign" aria-pressed="${pe.mode==="assign"}">Товары</button><button type="button" data-pemode="cap" aria-pressed="${pe.mode==="cap"}">Вместимость</button>`}</div>
+      <div class="row-btns"><button type="button" class="btn ghost" id="peUndo" ${pe.hist.length?"":"disabled"}>↶ Отменить</button><button type="button" class="btn primary" id="peSave" ${diff?"":"disabled"}>${diff?`Сохранить (${diff})`:"Сохранено"}</button></div></div>
+    ${pe.mode==="assign"?`<div class="brushes">${used.map(pid=>`<button type="button" class="chip" style="--h:${h(pid)}" data-brush="${pid}" aria-pressed="${pe.brush===pid}"><span class="sw"></span>${esc(shortName(prodName(pid)))} <small>${cellsOf(pid).length}</small></button>`).join("")}
+      <button type="button" class="chip eraser" data-brush="0" aria-pressed="${pe.brush===0}"><span class="sw"></span>Освободить</button><button type="button" class="chip add" id="peAdd">+ Товар</button></div>
+      <p class="hint2">${pe.brush?`<b>${esc(prodName(pe.brush))}</b>: нажмите на ${coffee?"кнопки":"ячейки или проведите пальцем по полке"}. Ячейки: ${cellsOf(pe.brush).join(", ")||"—"}`:pe.brush===0?"<b>Освободить</b>: нажмите на ячейки":"Выберите товар выше"}</p>`
+      :`<p class="hint2">Нажмите на ячейку, чтобы изменить вместимость. При смене товара вместимость сохраняется.</p>`}
+    <div class="pe-machine" id="peMachine">${Object.keys(shelves).sort(numSort).map(k=>`<div class="pe-shelf"><span class="pe-sl">${coffee?"":k==="0"?"1":k}</span><div class="pe-row">${shelves[k].map(b=>{const c=pe.cells[b],ch=JSON.stringify(c)!==JSON.stringify((JSON.parse(pe.saved)[b])||{});
+      return `<div class="pe-cell ${c.pid?"":"empty"} ${ch?"changed":""}" ${c.pid?`style="--h:${h(c.pid)}"`:""} data-pecell="${b}" role="button" tabindex="0" aria-label="Ячейка ${b}: ${esc(prodName(c.pid))}"><span class="code">${b}</span><span class="nm">${c.pid?esc(shortName(prodName(c.pid))):"пусто"}</span>${coffee?"":`<span class="cap">×${c.cap??"?"}</span>`}</div>`}).join("")}</div></div>`).join("")}</div>
+    <p class="txnote" style="padding:8px 0 0">${me&&me.demo?"Демо: планограмма сохраняется только на этом устройстве.":"Планограмма хранится в нашем приложении. В Вендисту и Телеметрон ничего не отправляется."}</p>
+  </div>`;
+}
+function peRender(){const el=$("pe");if(el)el.innerHTML=planEditorHtml(M.find(x=>x.id===PE.mid))}
+function peSet(b,pid){const c=PE.cells[b];if((c.pid||0)===(pid||0))return false;c.pid=pid||null;return true}
+let pePaint=null;
+document.addEventListener("pointerdown",e=>{const el=e.target.closest("[data-pecell]");if(!el||!PE||PE.mode!=="assign"||PE.brush==null)return;
+  const b=el.dataset.pecell,val=PE.brush&&PE.cells[b].pid===PE.brush?0:PE.brush;
+  pePaint={val,before:JSON.stringify(PE.cells),done:new Set([b])};if(peSet(b,val))peRender()});
+document.addEventListener("pointermove",e=>{if(!pePaint)return;const t=document.elementFromPoint(e.clientX,e.clientY);const el=t&&t.closest&&t.closest("[data-pecell]");
+  if(!el||pePaint.done.has(el.dataset.pecell))return;pePaint.done.add(el.dataset.pecell);if(peSet(el.dataset.pecell,pePaint.val))peRender()});
+window.addEventListener("pointerup",()=>{if(!pePaint)return;if(JSON.stringify(PE.cells)!==pePaint.before)PE.hist.push(pePaint.before);pePaint=null;peRender()});
+function peCap(b){const c=PE.cells[b];let v=c.cap||1;
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true"><h3>Ячейка ${b}</h3><p>${esc(prodName(c.pid))}. Сколько штук помещается на спираль.</p>
+    <div class="stepper"><button type="button" id="cDec" aria-label="Меньше">−</button><output id="cVal">${v}</output><button type="button" id="cInc" aria-label="Больше">+</button></div>
+    <div class="row-btns"><button type="button" class="btn" id="cShelf">Так же для всей полки</button><button type="button" class="btn primary" id="cOk">Готово</button></div></div></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
+  $("cDec").onclick=()=>{v=Math.max(1,v-1);$("cVal").textContent=v};$("cInc").onclick=()=>{v=Math.min(99,v+1);$("cVal").textContent=v};
+  $("cOk").onclick=()=>{if(v!==c.cap){PE.hist.push(JSON.stringify(PE.cells));c.cap=v}close();peRender()};
+  $("cShelf").onclick=()=>{PE.hist.push(JSON.stringify(PE.cells));Object.keys(PE.cells).filter(k=>shelfOf(k)===shelfOf(b)).forEach(k=>PE.cells[k].cap=v);close();peRender()};
+}
+function peAddProduct(){const used=new Set(Object.values(PE.cells).map(c=>c.pid));
+  const draw=q=>DB.products.filter(p=>!used.has(p.id)&&(!q||p.name.toLowerCase().includes(q.toLowerCase()))).map(p=>`<li><button type="button" data-peadd="${p.id}"><span>${esc(p.name)}</span></button></li>`).join("")||`<li class="empty">Нет товаров. Добавьте в Настройки → Товары.</li>`;
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:85vh;overflow:auto"><h3>Добавить товар в автомат</h3>
+    <input class="search2" id="peQ" type="search" placeholder="Поиск" autocomplete="off"><ul class="cat2" id="peCat">${draw("")}</ul></div></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
+  $("peQ").oninput=e=>$("peCat").innerHTML=draw(e.target.value);
+  $("peCat").addEventListener("click",e=>{const b=e.target.closest("[data-peadd]");if(!b)return;PE.brush=+b.dataset.peadd;PE.mode="assign";close();peRender();toast("Теперь отметьте ячейки для «"+prodName(PE.brush)+"»")});
+  $("peQ").focus();
+}
+function peSave(){const d=peDiff();const m=M.find(x=>x.id===PE.mid);
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:85vh;overflow:auto"><h3>Сохранить планограмму?</h3>
+    <ul class="changes">${d.join("")}</ul>
+    <div class="note">В ячейках, где сменился товар, остаток будет считаться с нуля, пока вы не отметите загрузку.</div>
+    <div class="row-btns"><button type="button" class="btn" id="psNo">Вернуться</button><button type="button" class="btn primary" id="psYes">Сохранить</button></div></div></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});$("psNo").onclick=close;
+  $("psYes").onclick=async()=>{try{const old=JSON.parse(PE.saved);const body={kind:PE.kind,cells:PE.cells};
+      await api("/planograms/"+m.vid,null,{method:"PUT",body});DB.planograms[m.vid]=JSON.parse(JSON.stringify(body));
+      const changed={};Object.keys(PE.cells).forEach(k=>{if((old[k]||{}).pid!==PE.cells[k].pid&&PE.kind!=="coffee")changed[k]=0});
+      if(Object.keys(changed).length){await api("/loadings",null,{method:"POST",body:{machine_id:m.vid,cells:changed,note:"Смена товара в ячейках "+Object.keys(changed).join(", ")}});DB.loadings=await api("/loadings")}
+      PE.saved=JSON.stringify(PE.cells);PE.hist=[];close();toast("Планограмма сохранена");peRender()}catch(e){toast("Не сохранилось: "+e.message)}};
+}
+
+/* ---------- события новых разделов ---------- */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,[data-pecell]"); if(!t)return;
+  if(t.dataset.go){if(route.startsWith("machine:")&&peDirty()&&!t.dataset.force){return confirmLeave(()=>{PE=null;go(t.dataset.go)})}PE=PE&&!peDirty()?null:PE;go(t.dataset.go);return}
+  if(t.dataset.open){if(t.dataset.tab){mTab=t.dataset.tab;LS.set("mTab",mTab)}go("machine:"+t.dataset.open);return}
+  if(t.dataset.mtab){mTab=t.dataset.mtab;LS.set("mTab",mTab);render();return}
+  if(t.dataset.stab){sTab=t.dataset.stab;LS.set("sTab",sTab);render();return}
+  if(t.dataset.rp){rp=+t.dataset.rp;LS.set("rp",rp);render();return}
+  if(t.dataset.loadm){openLoading(M.find(x=>x.id===t.dataset.loadm));return}
+  if(t.id==="prodAdd"){openProductAdd();return}
+  if(t.id==="setGroups"){openGroups();return}
+  if(t.id==="setScreen"){openCfg();return}
+  if(t.dataset.pemode){PE.mode=t.dataset.pemode;peRender();return}
+  if(t.dataset.brush!==undefined){PE.brush=+t.dataset.brush;PE.mode="assign";peRender();return}
+  if(t.id==="peAdd"){peAddProduct();return}
+  if(t.id==="peUndo"){const s=PE.hist.pop();if(s){PE.cells=JSON.parse(s);peRender()}return}
+  if(t.id==="peSave"){peSave();return}
+  if(t.dataset.pecell&&PE&&PE.mode==="cap"){peCap(t.dataset.pecell);return}
+});
+document.addEventListener("keydown",e=>{const el=e.target.closest&&e.target.closest("[data-pecell]");if(!el||(e.key!=="Enter"&&e.key!==" "))return;e.preventDefault();
+  if(PE.mode==="cap")return peCap(el.dataset.pecell);if(PE.brush==null)return;PE.hist.push(JSON.stringify(PE.cells));const b=el.dataset.pecell;peSet(b,PE.brush&&PE.cells[b].pid===PE.brush?0:PE.brush);peRender()});
+document.addEventListener("input",e=>{
+  if(e.target.id==="mSearch"){mSearch=e.target.value;const pos=e.target.selectionStart;render();const i=$("mSearch");if(i){i.focus();i.setSelectionRange(pos,pos)}}
+  if(e.target.id==="prodQ"){prodQ=e.target.value;const pos=e.target.selectionStart;render();const i=$("prodQ");if(i){i.focus();i.setSelectionRange(pos,pos)}}
+});
+document.addEventListener("change",e=>{
+  const c=e.target.dataset&&e.target.dataset.cost;if(c){const p=prodById(+c);if(p){p.cost=Math.max(0,+e.target.value||0);saveProducts()}}
+  const pk=e.target.dataset&&e.target.dataset.pick;if(pk){e.target.checked?ldPick.add(pk):ldPick.delete(pk);render()}
+});
+function confirmLeave(fn){
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true"><h3>Планограмма не сохранена</h3><p>Уйти и потерять изменения?</p>
+    <div class="row-btns"><button type="button" class="btn" id="clNo">Остаться</button><button type="button" class="btn primary" id="clYes">Уйти без сохранения</button></div></div></div>`;
+  $("clNo").onclick=()=>{$("sheetRoot").innerHTML=""};$("clYes").onclick=()=>{$("sheetRoot").innerHTML="";fn()};
+}
+
+function render(){
+  const r=route.split(":");
+  if(r[0]==="overview"){chrome("Обзор");if(prefs.sel!=="all"&&!(M.find(m=>m.id===prefs.sel)))prefs.sel="all";renderOverview();return}
+  const html=r[0]==="machines"?pageMachines():r[0]==="machine"?pageMachine(r[1]):r[0]==="loading"?pageLoading():r[0]==="reports"?pageReports():r[0]==="settings"?pageSettings():null;
+  if(html==null){route="overview";return render()}
+  $("blocks").innerHTML=html;
+}
 function showLogin(msg){
-  $("topBtns").hidden=true;
+  $("topBtns").hidden=true;$("botNav").hidden=true;$("topNav").innerHTML="";
   $("blocks").innerHTML=`<form class="panel login" id="loginForm" autocomplete="on">
     <h2>Вход</h2>
     <p>Логин и пароль, которые вы задали при установке сервера.</p>
