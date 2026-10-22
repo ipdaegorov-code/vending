@@ -900,7 +900,7 @@ function pageLoading(kind){
   const coffee=kind==="coffee";
   chrome(coffee?"Загрузка кофе":"Загрузка снеков");
   const rows=gMachines().filter(m=>{const pl=DB.planograms[m.vid];return pl&&(pl.kind==="coffee")===coffee}).map(m=>({m,st:stockOf(m)})).filter(x=>x.st).sort((a,b)=>a.st.pct-b.st.pct);
-  if(!ldPick[kind])ldPick[kind]=new Set(rows.filter(x=>x.st.pct<(coffee?35:70)||x.st.empty).map(x=>x.m.id));
+  if(!ldPick[kind])ldPick[kind]=new Set(); // по умолчанию ничего не выбрано
   const pick=ldPick[kind], need={};
   rows.filter(x=>pick.has(x.m.id)).forEach(({st})=>st.cells.forEach(c=>{if(c.level==null)return;const n=Math.max(0,c.cap-c.level);if(!n)return;
     (need[c.name]||(need[c.name]={n:0,cells:0,unit:c.unit||"шт"})).n+=n;need[c.name].cells++}));
