@@ -244,7 +244,8 @@ tr.refunded .nm{text-decoration:line-through}
 .chk{display:grid;place-items:center;height:100%}
 .chk input{width:20px;height:20px;accent-color:var(--accent)}
 .setlist{display:flex;flex-direction:column;padding:0 8px}
-.setlist .mcard{grid-template-columns:minmax(0,1fr) auto}
+.mcard.plain,.setlist .mcard{grid-template-columns:minmax(0,1fr) auto!important}
+.mcard.plain .r small{font-size:13px;color:var(--accent);font-weight:600}
 /* ---------- карточка автомата ---------- */
 .back{align-self:flex-start;border:0;background:none;color:var(--accent);font-weight:600;font-size:14.5px;padding:2px 0}
 .mhead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap}
@@ -314,6 +315,10 @@ tr.refunded .nm{text-decoration:line-through}
 .changes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .changes li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:baseline}
 .changes .k{font-family:var(--mono);font-size:12px;font-weight:700;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.cbtns{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.cbtns li{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:14px;min-width:0}
+.cbtns b{font-family:var(--mono);color:var(--muted)}
+.cbtns span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:13.5px}
 .btn.ghost{border-color:transparent;background:transparent}
 .btn:disabled{opacity:.45;cursor:default}
@@ -903,14 +908,17 @@ function pageSettings(){
         <td class="r"><input class="costin" type="number" inputmode="decimal" min="0" step="0.01" id="cost-${p.id}" data-cost="${p.id}" value="${p.cost??""}" aria-label="Себестоимость ${esc(p.name)}"> ₽</td></tr>`}).join("")}</tbody></table></div>
       <p class="txnote" style="padding:0 16px 14px">Цена берётся из продаж — её задаёт автомат. Себестоимость нужна для прибыли в отчётах.</p>`;
   } else if(sTab==="plans"){
-    const ms=M.filter(m=>DB.planograms[m.vid]);
-    body=`<div class="ph"><h2>Планограммы</h2><small>какой товар в какой ячейке</small></div>
-      <ul class="mtable">${ms.map(m=>{const pl=DB.planograms[m.vid],n=Object.keys(pl.cells).length,pr=new Set(Object.values(pl.cells).map(c=>c.pid)).size;
-        return `<li><button type="button" class="mcard" data-open="${m.id}" data-tab="plan"><span class="t"><span class="n">${esc(m.name)}<span class="type">${pl.kind==="coffee"?"кофе":"снек"}</span></span><span class="loc">${esc(m.loc)} · ${n} ${pl.kind==="coffee"?"кнопок":"ячеек"} · ${pr} товаров</span></span><span class="r"><small>Изменить ›</small></span></button></li>`}).join("")}</ul>`;
+    const card=m=>{const pl=DB.planograms[m.vid],n=Object.keys(pl.cells).length,pr=new Set(Object.values(pl.cells).map(c=>c.pid).filter(Boolean)).size;
+      return `<li><button type="button" class="mcard plain" data-open="${m.id}" data-tab="plan"><span class="t"><span class="n">${esc(m.name)}</span><span class="loc">${esc(m.loc)} · ${n} ${pl.kind==="coffee"?"кнопок":"ячеек"} · ${pr} ${pl.kind==="coffee"?"напитков":"товаров"}</span></span><span class="r"><small>${pl.kind==="coffee"?"Открыть":"Изменить"} ›</small></span></button></li>`};
+    const ms=M.filter(m=>DB.planograms[m.vid]), snack=ms.filter(m=>DB.planograms[m.vid].kind!=="coffee"), coffee=ms.filter(m=>DB.planograms[m.vid].kind==="coffee");
+    body=`<div class="ph"><h2>Снековые автоматы</h2><small>${snack.length} шт · товары меняются часто</small></div>
+      <ul class="mtable">${snack.map(card).join("")||`<li class="empty">Нет снековых автоматов</li>`}</ul>
+      </section><section class="panel"><div class="ph"><h2>Кофейные автоматы</h2><small>${coffee.length} шт · настраиваются один раз</small></div>
+      <ul class="mtable">${coffee.map(card).join("")||`<li class="empty">Нет кофейных автоматов</li>`}</ul>`;
   } else {
     body=`<div class="ph"><h2>Группы и главный экран</h2></div>
-      <div class="setlist"><button type="button" class="mcard" id="setGroups"><span class="t"><span class="n">Группы автоматов</span><span class="loc">${groups().length} групп · какие автоматы в какой группе</span></span><span class="r"><small>›</small></span></button>
-      <button type="button" class="mcard" id="setScreen"><span class="t"><span class="n">Главный экран</span><span class="loc">какие блоки показывать и в каком порядке</span></span><span class="r"><small>›</small></span></button></div>
+      <div class="setlist"><button type="button" class="mcard plain" id="setGroups"><span class="t"><span class="n">Группы автоматов</span><span class="loc">${groups().length} групп · какие автоматы в какой группе</span></span><span class="r"><small>›</small></span></button>
+      <button type="button" class="mcard plain" id="setScreen"><span class="t"><span class="n">Главный экран</span><span class="loc">какие блоки показывать и в каком порядке</span></span><span class="r"><small>›</small></span></button></div>
       <p class="txnote" style="padding:8px 16px 16px">${me&&me.demo?"Демо-режим: данные выдуманные, изменения хранятся только на этом устройстве.":me&&me.test?"Тестовый режим: в Вендисте ничего не меняется.":""}</p>`;
   }
   return `<div class="seg tabs" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-stab="${v}" aria-pressed="${sTab===v}" aria-selected="${sTab===v}">${l}</button>`).join("")}</div><section class="panel">${body}</section>`;
@@ -938,6 +946,10 @@ function peDiff(){const a=JSON.parse(PE.saved),b=PE.cells,out=[];
     if(x.cap!==y.cap)out.push(`<li><span class="k">${k}</span><span>вместимость ${x.cap??"—"} → <b>${y.cap??"—"}</b></span></li>`)});return out}
 function planEditorHtml(m){
   const pe=peInit(m), coffee=pe.kind==="coffee";
+  if(coffee&&!pe.unlocked){const btns=Object.keys(pe.cells).sort(numSort);
+    return `<div class="pe"><p class="hint2">Кофейный автомат: какой напиток на какой кнопке. Настраивается один раз, поэтому изменения закрыты.</p>
+      <ul class="cbtns">${btns.map(b=>`<li><b>${b}</b><span>${esc(prodName(pe.cells[b].pid))}</span></li>`).join("")}</ul>
+      <div class="row-btns" style="justify-content:flex-start"><button type="button" class="btn" id="peUnlock">Изменить кнопки</button></div></div>`}
   const used=[...new Set(Object.values(pe.cells).map(c=>c.pid).filter(Boolean))];
   const h=pid=>((pid*47)%360);
   const cellsOf=pid=>Object.keys(pe.cells).filter(k=>pe.cells[k].pid===pid).sort(numSort);
@@ -958,7 +970,7 @@ function planEditorHtml(m){
 function peRender(){const el=$("pe");if(el)el.innerHTML=planEditorHtml(M.find(x=>x.id===PE.mid))}
 function peSet(b,pid){const c=PE.cells[b];if((c.pid||0)===(pid||0))return false;c.pid=pid||null;return true}
 let pePaint=null;
-document.addEventListener("pointerdown",e=>{const el=e.target.closest("[data-pecell]");if(!el||!PE||PE.mode!=="assign"||PE.brush==null)return;
+document.addEventListener("pointerdown",e=>{const el=e.target.closest("[data-pecell]");if(!el||!PE||PE.mode!=="assign"||PE.brush==null||(PE.kind==="coffee"&&!PE.unlocked))return;
   const b=el.dataset.pecell,val=PE.brush&&PE.cells[b].pid===PE.brush?0:PE.brush;
   pePaint={val,before:JSON.stringify(PE.cells),done:new Set([b])};if(peSet(b,val))peRender()});
 document.addEventListener("pointermove",e=>{if(!pePaint)return;const t=document.elementFromPoint(e.clientX,e.clientY);const el=t&&t.closest&&t.closest("[data-pecell]");
@@ -1010,6 +1022,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.pemode){PE.mode=t.dataset.pemode;peRender();return}
   if(t.dataset.brush!==undefined){PE.brush=+t.dataset.brush;PE.mode="assign";peRender();return}
   if(t.id==="peAdd"){peAddProduct();return}
+  if(t.id==="peUnlock"){PE.unlocked=true;peRender();return}
   if(t.id==="peUndo"){const s=PE.hist.pop();if(s){PE.cells=JSON.parse(s);peRender()}return}
   if(t.id==="peSave"){peSave();return}
   if(t.dataset.pecell&&PE&&PE.mode==="cap"){peCap(t.dataset.pecell);return}
