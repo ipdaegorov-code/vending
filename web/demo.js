@@ -188,6 +188,11 @@
         { machine_id: 2, time: new Date(now - 50 * 36e5).toISOString(), level: "ok", text: "Открыта дверь (обслуживание)" }];
       return ev.filter((e) => new Date(e.time) >= from && new Date(e.time) <= to);
     }
+    if (path.startsWith("/kv/")) { const k = "kv." + path.slice(4); if (opt.method === "PUT") { ST.set(k, opt.body); return { ok: true }; }
+      const v = ST.get(k, null); if (v != null) return v;
+      if (path === "/kv/tags") return [{ name: "Вокзалы и депо", machines: ["V1", "V2", "V11"] }, { name: "Новые", machines: ["V12"] }];
+      if (path === "/kv/company") return { name: "CofeeMaker", inn: "", addr: "Санкт-Петербург" };
+      return null; }
     if (path === "/logout" || path === "/login") return { ok: true };
     throw new Error("Нет такого адреса: " + path);
   };

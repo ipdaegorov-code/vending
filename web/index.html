@@ -336,6 +336,16 @@ tr.refunded .nm{text-decoration:line-through}
 .tlink{all:unset;cursor:pointer;color:var(--ink);font-weight:500;border-bottom:1px dashed var(--line)}
 .tlink:focus-visible{outline:2px solid var(--accent)}
 .fb{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-top:2px}
+.hubl{list-style:none;margin:0;padding:6px 8px;display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.hubl .mcard .n{font-size:15px}
+.tabs.scrollx{overflow-x:auto;scrollbar-width:none}.tabs.scrollx::-webkit-scrollbar{display:none}
+.tabs.scrollx button{flex:0 0 auto;padding:7px 12px}
+.cmdgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+.cmdgrid .btn{text-align:left;font-weight:500;font-size:13.5px}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.costin.wide{width:100%;min-width:140px;text-align:left;font-family:var(--body)}
+.chk2{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+td .tlink{font-weight:600}
 .rbtn{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:8px}
 .rbtn:focus-visible{outline:2px solid var(--accent)}
 .rl small.wrap{white-space:normal;line-height:1.35}
@@ -823,8 +833,9 @@ const NAV0=[["overview","Обзор","M3 13h7V3H3v10zm0 8h7v-6H3v6zm10 0h8V11h-8
   ["loading","Снеки","M20 8h-3V4H3a2 2 0 0 0-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4zM6 18.5A1.5 1.5 0 1 1 6 15.5a1.5 1.5 0 0 1 0 3zm13.5-9 1.96 2.5H17V9.5h2.5zM18 18.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"],
   ["reports","Отчёты","M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"],
   ["settings","Настройки","M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"]];
-const NAV=[NAV0[0],NAV0[2],NAV0[1],NAV0[3],NAV0[4]];
-function navHtml(){const NAVV=NAV.filter(([r])=>r!=="reports"||can("reports.view"));const base=route.split(":")[0]==="machine"?(backTo||"overview").split(":")[0]:route.split(":")[0];
+const NAV=[NAV0[0],["machines","Автоматы","M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v10h7V5H7zm9 1v2h2V6h-2zm0 4v2h2v-2h-2zM7 18v1h10v-1H7z"],NAV0[2],NAV0[1],NAV0[3],NAV0[4]];
+const SECT={m:"machines",r:"reports",s:"settings"};
+function navHtml(){const NAVV=NAV.filter(([r])=>r!=="reports"||can("reports.view"));let base=route.split(":")[0]==="machine"?(backTo||"overview").split(":")[0]:route.split(":")[0];base=SECT[base]||base;
   return NAVV.map(([r,l,d])=>`<button type="button" data-go="${r}" aria-current="${base===r?"page":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></button>`).join("")}
 function chrome(title){
   $("pageTitle").textContent=title;
@@ -857,17 +868,20 @@ function pageMachine(id){
   chrome(m.name);
   const s=status(m),st=stockOf(m);
   if(prefs.sel!==m.id){prefs.sel=m.id;prefs.view="summary"}
-  const tabs=[["sales","Продажи"],["stock","Остатки"],["plan","Планограмма"],["events","События"]];
+  const tabs=[["sales","Продажи"],["stock",DB.planograms[m.vid]&&DB.planograms[m.vid].kind==="coffee"?"Ингредиенты":"Остатки"],["plan","Планограмма"],["enc","Инкассации"],["events","События"],["errors","Ошибки"],["ctl","Управление"]];
   let body="";
   if(mTab==="sales")body=`<div class="day mpage" id="day">${dayPanel()}</div>`;
   else if(mTab==="stock")body=stockPanel(m,st);
   else if(mTab==="plan")body=`<div id="pe">${planEditorHtml(m)}</div>`;
+  else if(mTab==="enc")body=encPanel(m);
+  else if(mTab==="errors")body=errPanel(m);
+  else if(mTab==="ctl")body=ctlPanel(m);
   else body=eventsPanel(m);
   return `<button type="button" class="back" data-go="${backTo||"overview"}">‹ Назад</button>
   <section class="panel mhead"><div><div class="eyebrow">${esc(m.model)} · ${esc(m.loc)}</div>
     <div class="mstat"><span class="st ${s.cls}"></span>${esc(s.text)}${st?` · заполнено ${st.pct}%`:""}</div></div>
     <div class="mnum"><span class="num">${rub(sum(sales(m,0)))}</span><small>сегодня</small></div></section>
-  <div class="seg tabs" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-mtab="${v}" aria-pressed="${mTab===v}" aria-selected="${mTab===v}">${l}</button>`).join("")}</div>
+  <div class="seg tabs scrollx" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-mtab="${v}" aria-pressed="${mTab===v}" aria-selected="${mTab===v}">${l}</button>`).join("")}</div>
   <section class="panel" style="padding-bottom:4px">${body}</section>`;
 }
 function stockPanel(m,st){
@@ -1270,11 +1284,236 @@ function confirmLeave(fn){
   $("clNo").onclick=()=>{$("sheetRoot").innerHTML=""};$("clYes").onclick=()=>{$("sheetRoot").innerHTML="";fn()};
 }
 
+/* ================= ВСЕ РАЗДЕЛЫ ТЕЛЕМЕТРОНА: автоматы, отчёты, настройки ================= */
+// Общие настройки аккаунта (места, теги, уведомления, реквизиты, отметки «на сервисе» и т.п.) — хранилище ключ-значение
+let KV={};
+async function kvGet(k,d){if(KV[k]===undefined){try{KV[k]=await api("/kv/"+k)}catch(e){KV[k]=null}}return KV[k]??d}
+async function kvSet(k,v){KV[k]=v;try{await api("/kv/"+k,null,{method:"PUT",body:v})}catch(e){toast("Не сохранилось: "+e.message)}}
+const kv=(k,d)=>{if(KV[k]===undefined){KV[k]=null;kvGet(k,d).then(()=>render())}return KV[k]??d};
+const back=(r,l)=>`<button type="button" class="back" data-go="${r}">‹ ${l}</button>`;
+const tbl=(cols,rows,empty="Нет данных за период")=>rows.length?`<div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr>${cols.map((c,i)=>`<th class="${c.r?"r":""}">${esc(c.t)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${cols[i].r?"r":""}">${v}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class="empty">${empty}</div>`;
+const hub=items=>`<ul class="hubl">${items.map(([id,t,d,dis])=>`<li><button type="button" class="mcard plain" data-go="${id}" ${dis?"disabled":""}><span class="t"><span class="n">${esc(t)}</span><span class="loc">${esc(d)}</span></span><span class="r"><small>›</small></span></button></li>`).join("")}</ul>`;
+const dt=t=>new Date(t).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+const periodSeg=()=>`<div class="seg" role="group" aria-label="Период" style="align-self:flex-start">${[[1,"Сегодня"],[-1,"Вчера"],[7,"7 дней"],[30,"30 дней"]].map(([v,l])=>`<button type="button" data-rp="${v}" aria-pressed="${rp===v}">${l}</button>`).join("")}</div>`;
+const periodKs=()=>rp===1?[0]:rp===-1?[1]:Array.from({length:rp},(_,i)=>i);
+const periodRange=()=>{const ks=periodKs();return [dayDate(ks[ks.length-1]),ks[0]===0?new Date():dayDate(ks[0]-1)]};
+const periodSales=(ms=gMachines())=>periodKs().flatMap(k=>ms.flatMap(m=>live(sales(m,k))));
+const machineName=vid=>{const m=M.find(x=>x.vid===vid);return m?m.name:"—"};
+// асинхронные данные (инкассации, события) — по периоду
+const asyncCache={};
+function fetchOnce(key,fn){if(!(key in asyncCache)){asyncCache[key]=null;fn().then(v=>{asyncCache[key]=v;render()}).catch(()=>{asyncCache[key]=[];render()})}return asyncCache[key]}
+const periodEnc=()=>{const [f,t]=periodRange();return fetchOnce("enc|"+rp,()=>api("/encashments",{from:f.toISOString(),to:t.toISOString()}))};
+const periodEv=()=>{const [f,t]=periodRange();return fetchOnce("ev|"+rp,()=>api("/events",{from:f.toISOString(),to:t.toISOString()}))};
+const tagsOf=m=>(kv("tags",[]).filter(t=>(t.machines||[]).includes(m.id)).map(t=>t.name));
+
+/* ---------- раздел «Автоматы» ---------- */
+function pageMachinesHub(){
+  chrome("Автоматы");
+  return hub([["m:echo","Монитор контроля","нет связи, ошибки, давно нет продаж — всё, что требует реакции"],
+    ["m:operational","Краткая сводка","остатки, выручка, наличные в автомате, последняя загрузка"],
+    ["m:registry","Реестр автоматов","модель, место, группа, планограмма, теги, заметки, «на сервисе»"],
+    ["m:all","Подробная информация","все автоматы со статусом и заполненностью"],
+    ["m:fiscal","Фискальная сводка","чеки за сегодня и вчера, ошибки касс"],
+    ["m:terminals","Управление терминалами","перезагрузка, кредит, настройки MDB"],
+    ["m:new","Добавить автомат","новый автомат в аккаунте"]]);
+}
+function pageEcho(){
+  chrome("Монитор контроля");
+  const ms=gMachines().map(m=>({m,s:status(m)}));
+  const sec=(t,list,empty)=>`<section class="panel"><div class="ph"><h2>${t} — ${list.length} шт</h2></div>${list.length?`<ul class="rlist">${list.map(({m,s})=>`<li><button type="button" class="rbtn" data-open="${m.id}" data-tab="events"><span class="rl"><b>${esc(m.name)}</b><small>${esc(m.loc)}</small></span><span class="rr"><b class="${s.cls==="bad"?"down":""}">${esc(s.text)}</b></span></button></li>`).join("")}</ul>`:`<div class="empty">${empty}</div>`}</section>`;
+  return back("machines","Автоматы")+chipsHtml()+
+    sec("Нет связи",ms.filter(x=>/нет связи/.test(x.s.text)),"Все автоматы на связи")+
+    sec("Не работают или с ошибкой",ms.filter(x=>x.m.state==="failed"||x.m.state==="warning"),"Ошибок нет")+
+    sec("Давно нет продаж",ms.filter(x=>/нет продаж/.test(x.s.text)),"Везде есть продажи")+
+    sec("Нужна загрузка",ms.filter(x=>{const st=stockOf(x.m);return st&&st.pct!=null&&st.pct<30}).map(x=>({m:x.m,s:{text:"заполнено "+stockOf(x.m).pct+"%"}})),"Загрузка нигде не нужна");
+}
+function pageOperational(){
+  chrome("Краткая сводка");
+  const enc=asyncCache["enc|30"]||fetchOnce("enc|30",()=>api("/encashments",{from:dayDate(29).toISOString(),to:new Date().toISOString()}))||[];
+  const rows=gMachines().map(m=>{const st=stockOf(m);const lastEnc=enc.filter(e=>e.machine_id===m.vid).map(e=>new Date(e.time)).sort((a,b)=>b-a)[0]||dayDate(29);
+    const cashIn=Object.values(RAW).filter(s=>s.m===m&&s.cash&&s.t>lastEnc).reduce((a,s)=>a+s.price,0);
+    return [`<button type="button" class="tlink" data-open="${m.id}">${esc(m.name)}</button>`,st&&st.pct!=null?st.pct+"%":"—",rub(sum(sales(m,0))),rub(Math.round(cashIn)),st&&st.last?dt(st.last):"—"]});
+  return back("machines","Автоматы")+chipsHtml()+`<section class="panel"><div class="ph"><h2>Автоматы — краткая сводка</h2><small>наличные — с последней инкассации</small></div>
+    ${tbl([{t:"Автомат"},{t:"Остатки",r:1},{t:"Выручка сегодня",r:1},{t:"Наличных в автомате",r:1},{t:"Посл. загрузка",r:1}],rows)}</section>`;
+}
+function pageRegistry(){
+  chrome("Реестр автоматов");
+  const svc=kv("service",{}),notes=kv("notes",{});
+  const rows=gMachines().map(m=>{const pl=DB.planograms[m.vid];const g=groups().find(x=>x.ids.includes(m.id));
+    return [`<button type="button" class="tlink" data-open="${m.id}">${esc(m.name)}</button><div class="card">${esc(m.id)}</div>`,esc(m.model),esc(m.addr||m.loc),esc(g?g.name:"—"),pl?(pl.kind==="coffee"?"кофейная":"снековая")+", "+Object.keys(pl.cells).length:"—",
+      `<label class="chk2"><input type="checkbox" data-svc="${m.id}" ${svc[m.id]?"checked":""} ${can("account.manage")?"":"disabled"} aria-label="На сервисе"> ${svc[m.id]?"да":"нет"}</label>`,esc(tagsOf(m).join(", ")||"—"),
+      `<button type="button" class="tlink" data-note="${m.id}">${esc(notes[m.id]||"добавить")}</button>`]});
+  return back("machines","Автоматы")+chipsHtml()+`<section class="panel"><div class="ph"><h2>Реестр автоматов</h2><small>${rows.length} шт</small></div>
+    ${tbl([{t:"Автомат"},{t:"Модель"},{t:"Место"},{t:"Группа"},{t:"Планограмма"},{t:"На сервисе"},{t:"Теги"},{t:"Заметки"}],rows)}
+    <p class="txnote" style="padding:0 16px 14px">«На сервисе» — автомат временно не работает по плану (ремонт, переезд): его не будет в «Требуют внимания».</p></section>`;
+}
+// чеки: в демо по каждой продаже есть чек; у автомата без связи — ошибки отправки
+function receiptsOf(m,k){const list=live(sales(m,k));const bad=m.vid===11||/нет связи/.test(status(m).text)?Math.min(list.length,k===0?3:0):0;return {ok:list.length-bad,bad,list}}
+function pageFiscal(){
+  chrome("Фискальная сводка");
+  const rows=gMachines().map(m=>{const t=receiptsOf(m,0),y=receiptsOf(m,1);return [esc(m.name),esc(m.loc),t.ok,y.ok,t.bad||y.bad?`<b class="down">${t.bad+y.bad}</b>`:"—"]});
+  return back("machines","Автоматы")+chipsHtml()+`<section class="panel"><div class="ph"><h2>Фискализация</h2><small>касса: Инитпро</small></div>
+    ${tbl([{t:"Автомат"},{t:"Место"},{t:"Чеки сегодня",r:1},{t:"Чеки вчера",r:1},{t:"Ошибки",r:1}],rows)}
+    <p class="txnote" style="padding:0 16px 14px">Продажи без чека подробно — в Отчёты → Кассовые чеки.</p></section>`;
+}
+const TERM_CMDS=["Перезагрузить терминал","Зачислить кредит","Автовозврат платежа","MDB. Стартовый кредит","MDB. Максимальный кредит","MDB. Настройки терминала","MDB. Режим Always Idle","MDB. Настройки прослушивания","MDB. Максимальная длительность сессии","MDB. Двойное нажатие при выборе товара","MDB. Таймауты","Принудительно завершать сессию безналичной продажи","Режимы бесконтактной оплаты","Предпочитаемый оператор GSM"];
+function pageTerminals(){
+  chrome("Управление терминалами");
+  return back("machines","Автоматы")+`<section class="panel"><div class="ph"><h2>Команды терминалам Вендисты</h2></div>
+    <div class="accf"><label class="fl" for="trm-m">Автомат<select class="search2" id="trm-m">${gMachines().map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join("")}</select></label>
+    <div class="cmdgrid">${TERM_CMDS.map(c=>`<button type="button" class="btn" data-cmd="${esc(c)}" ${me&&(me.test||me.demo)?"disabled":""}>${esc(c)}</button>`).join("")}</div>
+    <p class="txnote">${me&&(me.test||me.demo)?"Команды отключены: тестовый режим, в Вендисту ничего не отправляется.":"Команда уходит на терминал при следующем выходе на связь."}</p></div></section>`;
+}
+function pageNewMachine(){
+  chrome("Добавить автомат");
+  return back("machines","Автоматы")+`<section class="panel"><div class="ph"><h2>Новый автомат</h2></div><div class="accf">
+    <p class="txnote">Автоматы и терминалы заводятся в Вендисте и появляются здесь сами при следующем обновлении. Здесь — что нужно сделать после этого:</p>
+    <ol class="steps"><li>Привязать автомат к группе — Настройки → Группы мест и теги.</li><li>Создать планограмму — откройте автомат → «Планограмма».</li><li>Отметить первую загрузку — откройте автомат → «Остатки» → «Отметить загрузку».</li><li>Проверить чеки — Автоматы → Фискальная сводка.</li></ol></div></section>`;
+}
+
+/* ---------- раздел «Отчёты» ---------- */
+const REPORTS=[["summary","Сводка: выручка и прибыль","выручка, прибыль, нал/безнал, по автоматам и товарам"],
+  ["top","Топ продаж","лучшие и худшие товары за период"],["bymachine","Продажи по автоматам","штуки, сумма, средний чек, доля наличных"],
+  ["byday","Продажи по дням","динамика по дням"],["bytag","Продажи по тегам и группам","сравнение групп автоматов"],
+  ["byproduct","Отчёт по продуктам","продажи каждого товара и рецепта"],["ingredients","Расход ингредиентов","сколько ушло зерна, молока, стаканов"],
+  ["remain","Отчёт по остаткам","что сейчас в каждом автомате"],["analytics","Аналитика по продуктам","как товар продаётся в разных автоматах"],
+  ["collections","Инкассации","сколько наличных забрано и когда"],["refill","Загрузки продуктов","что и когда загружено"],
+  ["events","События","связь, ошибки, обслуживание"],["service","По обслуживанию","в какие дни какой автомат обслуживали"],
+  ["idle","По простоям","когда автомат не работал"],["receipts","Кассовые чеки","чек у каждой продажи, продажи без чека"],
+  ["timeline","Таймлайн продаж","каждая продажа по времени с типом оплаты"],["tx","Транзакции","оплаты картой, возвраты"]];
+function pageReportsHub(){chrome("Отчёты");return hub(REPORTS.map(([id,t,d])=>["r:"+id,t,d]))}
+function pageReport(id){
+  if(id==="summary"){const html=pageReports();chrome("Сводка");return back("reports","Отчёты")+html}
+  const R=REPORTS.find(x=>x[0]===id);chrome(R?R[1]:"Отчёт");
+  const head=back("reports","Отчёты")+periodSeg()+chipsHtml();
+  const panel=(t,inner,sub="")=>`<section class="panel"><div class="ph"><h2>${t}</h2><small>${sub}</small></div>${inner}</section>`;
+  const list=periodSales(), ms=gMachines();
+  const by=(arr,key)=>{const g=new Map();arr.forEach(s=>{const k=key(s);const a=g.get(k)||{n:0,v:0,cash:0,cost:0};a.n++;a.v+=s.price;if(s.cash)a.cash+=s.price;a.cost+=costOf(s);g.set(k,a)});return [...g].sort((a,b)=>b[1].v-a[1].v)};
+  if(id==="top"){const p=by(list,s=>s.name);
+    return head+panel("Лучшие",tbl([{t:"Товар"},{t:"Шт",r:1},{t:"Сумма",r:1}],p.slice(0,10).map(([n,a])=>[esc(n),a.n,rub(Math.round(a.v))])))+panel("Хуже всего продаются",tbl([{t:"Товар"},{t:"Шт",r:1},{t:"Сумма",r:1}],p.slice(-10).reverse().map(([n,a])=>[esc(n),a.n,rub(Math.round(a.v))])))}
+  if(id==="bymachine")return head+panel("Продажи по автоматам",tbl([{t:"Автомат"},{t:"Шт",r:1},{t:"Сумма",r:1},{t:"Ср. чек",r:1},{t:"Наличные",r:1}],by(list,s=>s.m.name).map(([n,a])=>[esc(n),a.n,rub(Math.round(a.v)),Math.round(a.v/a.n)+" ₽",Math.round(a.cash/a.v*100)+"%"])));
+  if(id==="byday"){const ks=periodKs();return head+panel("Продажи по дням",tbl([{t:"День"},{t:"Шт",r:1},{t:"Сумма",r:1},{t:"Наличные",r:1}],ks.map(k=>{const a=ms.flatMap(m=>live(sales(m,k)));return [dayDate(k).toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"short"}),a.length,rub(Math.round(sum(a))),rub(Math.round(a.filter(s=>s.cash).reduce((x,s)=>x+s.price,0)))]})))}
+  if(id==="bytag"){const rows=[...groups().map(g=>[g.name,M.filter(m=>g.ids.includes(m.id))]),...kv("tags",[]).map(t=>["#"+t.name,M.filter(m=>(t.machines||[]).includes(m.id))])].map(([n,mm])=>{const a=periodKs().flatMap(k=>mm.flatMap(m=>live(sales(m,k))));return [esc(n),mm.length,a.length,rub(Math.round(sum(a))),mm.length?rub(Math.round(sum(a)/mm.length)):"—"]});
+    return back("reports","Отчёты")+periodSeg()+panel("Продажи по группам и тегам",tbl([{t:"Группа / тег"},{t:"Автоматов",r:1},{t:"Шт",r:1},{t:"Сумма",r:1},{t:"В среднем на автомат",r:1}],rows))}
+  if(id==="byproduct")return head+panel("Отчёт по продуктам",tbl([{t:"Товар"},{t:"Шт",r:1},{t:"Сумма",r:1},{t:"Себестоимость",r:1},{t:"Прибыль",r:1}],by(list,s=>s.name).map(([n,a])=>[esc(n),a.n,rub(Math.round(a.v)),rub(Math.round(a.cost)),rub(Math.round(a.v-a.cost))])));
+  if(id==="ingredients"){const use=new Map();list.forEach(s=>{const c=planCellAt(s.m,s.layout,s.t);const r=c&&prodById(c.pid);(r&&r.components||[]).forEach(x=>{const i=prodById(x.iid);if(!i)return;const u=use.get(i)||0;use.set(i,u+(+x.qty||0))})});
+    return head+panel("Расход ингредиентов",tbl([{t:"Ингредиент"},{t:"Расход",r:1},{t:"На сумму",r:1}],[...use].sort((a,b)=>a[0].name.localeCompare(b[0].name,"ru")).map(([i,q])=>[esc(i.name),Math.round(q).toLocaleString("ru-RU")+" "+esc(i.unit),rub(Math.round(q*unitCost(i)))])),"по рецептам проданных напитков")}
+  if(id==="remain"){const rows=[];ms.forEach(m=>{const st=stockOf(m);if(!st)return;st.cells.forEach(c=>rows.push([esc(m.name),st.coffee?"":c.btn,esc(c.name),c.level==null?"?":c.level.toLocaleString("ru-RU")+" "+(c.unit||"шт"),c.cap?Math.round((c.level||0)/c.cap*100)+"%":"—"]))});
+    return back("reports","Отчёты")+chipsHtml()+panel("Остатки сейчас",tbl([{t:"Автомат"},{t:"Ячейка",r:1},{t:"Товар"},{t:"Остаток",r:1},{t:"%",r:1}],rows))}
+  if(id==="analytics"){const prods=by(list,s=>s.name).slice(0,15).map(x=>x[0]);const mm=ms.filter(m=>list.some(s=>s.m===m));
+    const rows=prods.map(p=>[esc(p),...mm.map(m=>{const n=list.filter(s=>s.m===m&&s.name===p).length;return n||"·"})]);
+    return head+panel("Товары × автоматы, шт",tbl([{t:"Товар"},...mm.map(m=>({t:shortName(m.name),r:1}))],rows),"15 самых продаваемых")}
+  if(id==="collections"){const e=periodEnc();if(!e)return head+panel("Инкассации",`<div class="empty">Загружаю…</div>`);
+    return head+panel("Инкассации",tbl([{t:"Дата"},{t:"Автомат"},{t:"Сумма",r:1}],e.filter(x=>ms.some(m=>m.vid===x.machine_id)).map(x=>[dt(x.time),esc(machineName(x.machine_id)),rub(Math.round(x.sum))])))}
+  if(id==="refill"){const [f,t]=periodRange();const rows=DB.loadings.filter(l=>new Date(l.time)>=f&&new Date(l.time)<=t&&ms.some(m=>m.vid===l.machine_id)).sort((a,b)=>new Date(b.time)-new Date(a.time))
+      .map(l=>[dt(l.time),esc(machineName(l.machine_id)),esc(l.note||""),Object.keys(l.cells||{}).length,esc(l.user||"")]);
+    return head+panel("Загрузки",tbl([{t:"Дата"},{t:"Автомат"},{t:"Что"},{t:"Ячеек",r:1},{t:"Кто"}],rows))}
+  if(id==="events"){const e=periodEv();if(!e)return head+panel("События",`<div class="empty">Загружаю…</div>`);
+    return head+panel("События",tbl([{t:"Дата"},{t:"Автомат"},{t:"Событие"}],e.filter(x=>ms.some(m=>m.vid===x.machine_id)).map(x=>[dt(x.time),esc(machineName(x.machine_id)),`<span class="${x.level==="bad"?"down":""}">${esc(x.text)}</span>`])))}
+  if(id==="service"){const days=Array.from({length:14},(_,i)=>13-i);const enc=asyncCache["enc|30"]||fetchOnce("enc|30",()=>api("/encashments",{from:dayDate(29).toISOString(),to:new Date().toISOString()}))||[];
+    const mark=(m,k)=>{const d0=dayDate(k),d1=new Date(d0.getTime()+864e5);const L=DB.loadings.some(l=>l.machine_id===m.vid&&new Date(l.time)>=d0&&new Date(l.time)<d1),E=enc.some(e=>e.machine_id===m.vid&&new Date(e.time)>=d0&&new Date(e.time)<d1);return L&&E?"З+И":L?"З":E?"И":""};
+    return back("reports","Отчёты")+chipsHtml()+panel("Обслуживание за 14 дней",tbl([{t:"Автомат"},...days.map(k=>({t:String(dayDate(k).getDate()),r:1}))],ms.map(m=>[esc(m.name),...days.map(k=>mark(m,k))])),"З — загрузка, И — инкассация")}
+  if(id==="idle"){const rows=ms.map(m=>{const s=status(m);const off=/нет связи/.test(s.text)?Math.max(1,Math.round((now-(m.last_online||now))/36e5)):0;return {m,off}}).filter(x=>x.off||x.m.state==="failed");
+    return head+panel("Простои",tbl([{t:"Автомат"},{t:"Не работал",r:1},{t:"Потеря выручки ≈",r:1}],rows.map(({m,off})=>{const avg=sum(sales(m,7))/16;return [esc(m.name),off+" ч",rub(Math.round(avg*Math.min(off,16)))]})),"простои короче 30 минут не учитываются")}
+  if(id==="receipts"){const rows=[];periodKs().forEach(k=>ms.forEach(m=>{const r=receiptsOf(m,k);r.list.slice(-Math.min(r.list.length,40)).forEach((s,i)=>{const fail=i>=r.list.length-r.bad;rows.push([dt(s.t),esc(m.name),esc(s.name)+" · "+s.price+" ₽",fail?"—":"ФП "+String(1e9+((s.t.getTime()/1000)|0)%9e8),fail?`<b class="down">не пробит</b>`:`<span class="up">пробит</span>`])})}));
+    const bad=rows.filter(r=>r[4].includes("не пробит")).length;
+    return head+panel("Кассовые чеки",(bad?`<div class="note" style="margin:0 16px 10px">Продаж без чека: ${bad}. Их нужно пробить повторно или чеком коррекции.</div>`:"")+tbl([{t:"Дата продажи"},{t:"Автомат"},{t:"Позиция"},{t:"Фиск. данные"},{t:"Состояние"}],rows.sort((a,b)=>b[4].includes("не")-a[4].includes("не")).slice(0,300)),"касса Инитпро")}
+  if(id==="timeline"){const rows=list.slice().sort((a,b)=>b.t-a.t).slice(0,500).map(s=>[dt(s.t),esc(s.m.name),esc(s.name),s.price+" ₽",s.cash?"наличные":"карта"]);
+    return head+panel("Таймлайн продаж",tbl([{t:"Время"},{t:"Автомат"},{t:"Товар"},{t:"Цена",r:1},{t:"Оплата"}],rows),list.length>500?"последние 500":"")}
+  if(id==="tx"){prefs.view="tx";prefs.sel="all";const k=rp===-1?1:0;prefs.dayK=k;return head+`<section class="panel"><div class="day mpage" id="day">${dayPanel()}</div></section>`}
+  return head+`<div class="empty">Отчёт в разработке</div>`;
+}
+
+/* ---------- раздел «Настройки» ---------- */
+function pageSettingsHub(){
+  chrome("Настройки");
+  return hub([["s:catalog","Рецептуры и продукты","товары, ингредиенты, рецепты, себестоимость, данные для чека"],
+    ["s:plans","Планограммы","снековые и кофейные"],["s:places","Места установки","адреса автоматов"],["s:tags","Группы мест и теги","группы автоматов и теги для отчётов"],
+    ["s:devices","Устройства (терминалы Вендисты)","связь, сигнал, версия прошивки"],["s:notices","Уведомления","Telegram и почта: ошибки, связь, остатки"],
+    ["s:screen","Главный экран","блоки и их порядок"],["s:users","Пользователи и роли","кто что видит"],["s:company","Данные компании","реквизиты, налогообложение, касса"],
+    ...(can("account.manage")?[["s:account","Аккаунт и подключения","Вендиста, чеки по умолчанию"]]:[]),["s:quick","Мастер настройки","что ещё не настроено"],["s:billing","Оплата сервиса","тариф и документы"]]);
+}
+const stripTabs=html=>html.replace(/^<div class="seg tabs" role="tablist">[\s\S]*?<\/div>/,"");
+function pageSetting(id){
+  const wrap=(t,html)=>{chrome(t);return back("settings","Настройки")+html};
+  if(id==="catalog"){sTab="products";return wrap("Рецептуры и продукты",stripTabs(pageSettings()))}
+  if(id==="plans"){sTab="plans";return wrap("Планограммы",stripTabs(pageSettings()))}
+  if(id==="account"){sTab="account";return wrap("Аккаунт",stripTabs(pageSettings()))}
+  if(id==="screen")return wrap("Главный экран",`<section class="panel"><div class="ph"><h2>Главный экран</h2></div><div class="accf"><p class="txnote">Какие блоки показывать на «Обзоре» и в каком порядке.</p><div class="row-btns" style="justify-content:flex-start"><button type="button" class="btn primary" id="setScreen">Настроить блоки</button><button type="button" class="btn" id="setGroups">Группы автоматов</button></div></div></section>`);
+  const panel=(t,inner,sub="")=>`<section class="panel"><div class="ph"><h2>${t}</h2><small>${sub}</small></div>${inner}</section>`;
+  if(id==="places"){const pl=kv("places",{});
+    return wrap("Места установки",panel("Места установки",tbl([{t:"Автомат"},{t:"Место"},{t:"Адрес"}],M.map(m=>[esc(m.name),`<input class="costin wide" data-place="${m.id}" data-f="name" value="${esc((pl[m.id]||{}).name||m.loc||"")}" aria-label="Место">`,`<input class="costin wide" data-place="${m.id}" data-f="addr" value="${esc((pl[m.id]||{}).addr||m.addr||"")}" aria-label="Адрес">`])),"сохраняется сразу"))}
+  if(id==="tags"){const tags=kv("tags",[]);
+    return wrap("Группы мест и теги",panel("Группы",`<div class="row-btns" style="justify-content:flex-start;padding:0 16px 12px"><button type="button" class="btn" id="setGroups">Настроить группы</button></div><ul class="rlist">${groups().map(g=>`<li><span class="rl"><b>${esc(g.name)}</b><small>${g.ids.map(id=>esc(M.find(m=>m.id===id)?.name||"")).join(", ")}</small></span><span class="rr"><b>${g.ids.length}</b></span></li>`).join("")}</ul>`,"автомат — только в одной группе")+
+      panel("Теги",`<div class="row-btns" style="justify-content:flex-start;padding:0 16px 12px"><button type="button" class="btn" id="tagAdd">+ Тег</button></div>${tags.length?`<ul class="rlist">${tags.map((t,i)=>`<li><button type="button" class="rbtn" data-tag="${i}"><span class="rl"><b>#${esc(t.name)}</b><small>${(t.machines||[]).map(id=>esc(M.find(m=>m.id===id)?.name||"")).join(", ")||"нет автоматов"}</small></span><span class="rr"><b>${(t.machines||[]).length}</b></span></button></li>`).join("")}</ul>`:`<div class="empty">Тегов пока нет. Теги — свободные метки: «вокзалы», «новые», «оператор Иван».</div>`}`,"автомат может иметь несколько тегов"))}
+  if(id==="devices")return wrap("Устройства",panel("Терминалы Вендисты",tbl([{t:"Автомат"},{t:"Терминал"},{t:"Последняя связь"},{t:"Состояние"}],M.map(m=>{const s=status(m);return [esc(m.name),esc(String(m.terminal_id||"—")),m.last_online?dt(m.last_online):"—",`<span class="${s.cls==="bad"?"down":"up"}">${/нет связи/.test(s.text)?esc(s.text):"на связи"}</span>`]}))));
+  if(id==="notices"){const rules=kv("notices",[]);const T={offline:"Автомат без связи",error:"Ошибка автомата",nosales:"Давно нет продаж",stock:"Мало товара или ингредиента",receipt:"Продажа без чека"};
+    return wrap("Уведомления",panel("Уведомления",`<div class="row-btns" style="justify-content:flex-start;padding:0 16px 12px"><button type="button" class="btn" id="ntAdd">+ Правило</button></div>${rules.length?`<ul class="rlist">${rules.map((r,i)=>`<li><span class="rl"><b>${esc(T[r.type]||r.type)}</b><small>${r.channel==="tg"?"Telegram":"Почта"}: ${esc(r.to)} · ${esc(r.group==="all"?"все автоматы":(groups().find(g=>g.id===r.group)||{}).name||"")}</small></span><span class="rr"><button type="button" class="btn ghost" data-ntdel="${i}">Удалить</button></span></li>`).join("")}</ul>`:`<div class="empty">Правил нет. Например: «Автомат без связи → Telegram».</div>`}
+      <p class="txnote" style="padding:0 16px 14px">Отправка уведомлений заработает на сервере. В прототипе правила только сохраняются.</p>`))}
+  if(id==="users")return wrap("Пользователи и роли",`<div id="usersBox">${(()=>{const u=fetchOnce("users",()=>api("/users"));if(!u)return `<div class="empty">Загружаю…</div>`;
+    return panel("Пользователи",`<ul class="rlist">${u.users.map(x=>`<li><span class="rl"><b>${esc(x.name||x.login)}</b><small>${esc(x.login)}</small></span><span class="rr"><b>${esc(x.role_title)}</b></span></li>`).join("")}</ul>`)+
+      panel("Роли",`<ul class="rlist">${u.roles.map(r=>`<li><span class="rl"><b>${esc(r.title)}</b><small>${r.perms.includes("*")?"всё":r.perms.length+" прав"}</small></span></li>`).join("")}</ul><p class="txnote" style="padding:0 16px 14px">Роли для операторов добавим, когда решите, что им показывать.</p>`)})()}</div>`);
+  if(id==="company"){const c=kv("company",{name:"",inn:"",addr:""});
+    return wrap("Данные компании",panel("Реквизиты",`<form class="accf" id="coForm"><label class="fl" for="co-name">Название (ИП или организация)<input class="search2" id="co-name" value="${esc(c.name)}"></label>
+      <label class="fl" for="co-inn">ИНН<input class="search2" id="co-inn" inputmode="numeric" value="${esc(c.inn)}"></label><label class="fl" for="co-addr">Юридический адрес<input class="search2" id="co-addr" value="${esc(c.addr)}"></label>
+      <p class="txnote">Касса: Инитпро. Система налогообложения, НДС и предмет расчёта — в Настройки → Аккаунт → Чеки.</p>
+      <div class="row-btns" style="justify-content:flex-start"><button class="btn primary" type="submit" ${can("account.manage")?"":"disabled"}>Сохранить</button></div></form>`))}
+  if(id==="quick"){const has=(n,ok,go2)=>`<li><span class="rl"><b>${ok?"✓":"○"} ${n}</b></span><span class="rr">${ok?"<small>готово</small>":`<button type="button" class="btn" data-go="${go2}">Настроить</button>`}</span></li>`;
+    const snack=M.filter(m=>DB.planograms[m.vid]&&DB.planograms[m.vid].kind!=="coffee");
+    return wrap("Мастер настройки",panel("Что ещё не настроено",`<ul class="rlist">
+      ${has("Подключить Вендисту",!!(me&&(me.demo||me.account)),"s:account")}${has("Планограммы у всех автоматов",M.every(m=>DB.planograms[m.vid]),"s:plans")}
+      ${has("Себестоимость у всех товаров",DB.products.filter(p=>kindOf(p)==="item").every(p=>+p.cost>0),"s:catalog")}${has("Рецепты кофейных автоматов",DB.products.some(p=>kindOf(p)==="recipe"),"s:catalog")}
+      ${has("Первая загрузка снековых",snack.every(m=>DB.loadings.some(l=>l.machine_id===m.vid)),"loading")}${has("Группы автоматов",groups().length>1,"s:tags")}
+      ${has("Реквизиты компании",!!(kv("company",{}).inn),"s:company")}${has("Уведомления",kv("notices",[]).length>0,"s:notices")}</ul>`))}
+  if(id==="billing")return wrap("Оплата сервиса",panel("Оплата сервиса",`<div class="empty">Своё приложение — без абонентской платы за кабинет. Здесь можно будет вести расходы на сервер, SIM-карты терминалов и Вендисту.</div>`));
+  return wrap("Настройки",`<div class="empty">Раздел в разработке</div>`);
+}
+function openTag(i){const tags=kv("tags",[]);const t=i==null?{name:"",machines:[]}:{...tags[i],machines:[...(tags[i].machines||[])]};
+  sheet(`<h3>${i==null?"Новый тег":"Тег"}</h3><label class="fl" for="tg-name">Название<input class="search2" id="tg-name" value="${esc(t.name)}"></label>
+    <div class="fl">Автоматы с этим тегом</div><ul class="ldlist">${M.map(m=>`<li style="grid-template-columns:28px minmax(0,1fr)"><input type="checkbox" id="tg-${m.id}" data-tgm="${m.id}" ${t.machines.includes(m.id)?"checked":""}><label for="tg-${m.id}">${esc(m.name)}</label></li>`).join("")}</ul>
+    <div class="row-btns">${i!=null?`<button type="button" class="btn ghost" id="tg-del">Удалить</button>`:""}<button type="button" class="btn" id="tg-no">Отмена</button><button type="button" class="btn primary" id="tg-ok">Сохранить</button></div>`,
+  (el,close)=>{$("tg-no").onclick=close;if($("tg-del"))$("tg-del").onclick=async()=>{tags.splice(i,1);await kvSet("tags",tags);close();render()};
+    $("tg-ok").onclick=async()=>{const name=$("tg-name").value.trim().replace(/^#/,"");if(!name)return $("tg-name").focus();
+      const o={name,machines:[...el.querySelectorAll("[data-tgm]:checked")].map(x=>x.dataset.tgm)};if(i==null)tags.push(o);else tags[i]=o;await kvSet("tags",tags);close();render()}})}
+function openNotice(){const T={offline:"Автомат без связи",error:"Ошибка автомата",nosales:"Давно нет продаж",stock:"Мало товара или ингредиента",receipt:"Продажа без чека"};
+  sheet(`<h3>Новое уведомление</h3><label class="fl" for="nt-type">Когда<select class="search2" id="nt-type">${Object.entries(T).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+    <label class="fl" for="nt-group">Автоматы<select class="search2" id="nt-group"><option value="all">Все</option>${groups().map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join("")}</select></label>
+    <label class="fl" for="nt-ch">Куда<select class="search2" id="nt-ch"><option value="tg">Telegram</option><option value="mail">Почта</option></select></label>
+    <label class="fl" for="nt-to">Кому (ник Telegram или почта)<input class="search2" id="nt-to" placeholder="@username"></label>
+    <div class="row-btns"><button type="button" class="btn" id="nt-no">Отмена</button><button type="button" class="btn primary" id="nt-ok">Добавить</button></div>`,
+  (el,close)=>{$("nt-no").onclick=close;$("nt-ok").onclick=async()=>{const to=$("nt-to").value.trim();if(!to)return $("nt-to").focus();
+    const rules=kv("notices",[]);rules.push({type:$("nt-type").value,group:$("nt-group").value,channel:$("nt-ch").value,to});await kvSet("notices",rules);close();render()}})}
+document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;
+  if(t.id==="tagAdd")return openTag(null);if(t.dataset.tag!=null)return openTag(+t.dataset.tag);
+  if(t.id==="ntAdd")return openNotice();if(t.dataset.ntdel!=null){const r=kv("notices",[]);r.splice(+t.dataset.ntdel,1);kvSet("notices",r).then(render);return}
+  if(t.dataset.note){const m=M.find(x=>x.id===t.dataset.note);const notes=kv("notes",{});
+    sheet(`<h3>Заметка: ${esc(m.name)}</h3><textarea class="search2" id="nt-text" rows="4">${esc(notes[m.id]||"")}</textarea><div class="row-btns"><button type="button" class="btn" id="nn-no">Отмена</button><button type="button" class="btn primary" id="nn-ok">Сохранить</button></div>`,
+      (el,close)=>{$("nn-no").onclick=close;$("nn-ok").onclick=async()=>{notes[m.id]=$("nt-text").value.trim();await kvSet("notes",notes);close();render()}});return}
+  if(t.dataset.cmd){toast("Тестовый режим: команда не отправлена");return}
+});
+document.addEventListener("change",async e=>{const d=e.target.dataset||{};
+  if(d.svc){const s=kv("service",{});s[d.svc]=e.target.checked;await kvSet("service",s);render()}
+  if(d.place){const p=kv("places",{});p[d.place]={...(p[d.place]||{}),[d.f]:e.target.value.trim()};await kvSet("places",p);toast("Сохранено")}
+});
+document.addEventListener("submit",async e=>{if(e.target.id!=="coForm")return;e.preventDefault();
+  await kvSet("company",{name:$("co-name").value.trim(),inn:$("co-inn").value.trim(),addr:$("co-addr").value.trim()});toast("Сохранено");render()});
+
+/* ---------- вкладки карточки автомата, которых не было ---------- */
+function encPanel(m){const e=fetchOnce("enc|30",()=>api("/encashments",{from:dayDate(29).toISOString(),to:new Date().toISOString()}));if(!e)return `<div class="empty">Загружаю…</div>`;
+  return tbl([{t:"Дата"},{t:"Сумма",r:1}],e.filter(x=>x.machine_id===m.vid).map(x=>[dt(x.time),rub(Math.round(x.sum))]),"За 30 дней инкассаций не было")}
+function errPanel(m){const e=fetchOnce("ev30",()=>api("/events",{from:dayDate(29).toISOString(),to:new Date().toISOString()}));if(!e)return `<div class="empty">Загружаю…</div>`;
+  return tbl([{t:"Дата"},{t:"Ошибка"}],e.filter(x=>x.machine_id===m.vid&&x.level!=="ok").map(x=>[dt(x.time),`<span class="down">${esc(x.text)}</span>`]),"Ошибок за 30 дней нет")}
+function ctlPanel(m){return `<div class="accf" style="padding-top:14px"><div class="cmdgrid">${TERM_CMDS.slice(0,6).map(c=>`<button type="button" class="btn" data-cmd="${esc(c)}" ${me&&(me.test||me.demo)?"disabled":""}>${esc(c)}</button>`).join("")}</div>
+  <p class="txnote">${me&&(me.test||me.demo)?"Тестовый режим: команды на терминал не отправляются.":""} Все команды — Автоматы → Управление терминалами.</p></div>`}
+
 function render(){
   const r=route.split(":");
   if(r[0]==="overview"){chrome("Обзор");if(prefs.sel!=="all"&&!(M.find(m=>m.id===prefs.sel)))prefs.sel="all";renderOverview();return}
   if(r[0]==="reports"&&!can("reports.view")){route="overview";return render()}
-  const html=r[0]==="machines"?pageMachines():r[0]==="machine"?pageMachine(r[1]):r[0]==="loading"?pageLoading("snack"):r[0]==="coffee"?pageLoading("coffee"):r[0]==="reports"?pageReports():r[0]==="settings"?pageSettings():null;
+  if(r[0]==="r"&&!can("reports.view")){route="overview";return render()}
+  const html=r[0]==="machines"?pageMachinesHub():r[0]==="m"?(r[1]==="all"?back("machines","Автоматы")+pageMachines():r[1]==="echo"?pageEcho():r[1]==="operational"?pageOperational():r[1]==="registry"?pageRegistry():r[1]==="fiscal"?pageFiscal():r[1]==="terminals"?pageTerminals():r[1]==="new"?pageNewMachine():null)
+    :r[0]==="machine"?pageMachine(r[1]):r[0]==="loading"?pageLoading("snack"):r[0]==="coffee"?pageLoading("coffee")
+    :r[0]==="reports"?pageReportsHub():r[0]==="r"?pageReport(r[1]):r[0]==="settings"?pageSettingsHub():r[0]==="s"?pageSetting(r[1]):null;
   if(html==null){route="overview";return render()}
   $("blocks").innerHTML=html;
 }

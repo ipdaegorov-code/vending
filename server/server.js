@@ -360,6 +360,17 @@ route("PUT", "/api/planograms/(\\d+)", "planograms.edit", async (req, res, me, a
   acc.planograms[mid] = { kind: b.kind, cells: b.cells, hoppers: b.hoppers || (prev && prev.hoppers) || undefined, updated: now, by: me.login, history };
   save(); audit(me, "planogram_saved", { machine: mid }); send(res, 200, { ok: true });
 });
+// прочие настройки аккаунта: места, теги, уведомления, реквизиты, отметки «на сервисе», заметки
+const KV_KEYS = new Set(["places", "tags", "notices", "company", "service", "notes", "schedules"]);
+route("GET", "/api/kv/([a-z_]+)", "sales.view", async (req, res, me, acc, q, [k]) => {
+  if (!KV_KEYS.has(k)) throw bad("Неизвестный раздел", 404);
+  send(res, 200, (acc.kv || {})[k] ?? null);
+});
+route("PUT", "/api/kv/([a-z_]+)", "account.manage", async (req, res, me, acc, q, [k]) => {
+  if (!KV_KEYS.has(k)) throw bad("Неизвестный раздел", 404);
+  const b = await readBody(req, 5e5);
+  acc.kv = acc.kv || {}; acc.kv[k] = b; save(); audit(me, "settings_saved", { key: k }); send(res, 200, { ok: true });
+});
 route("GET", "/api/loadings", "machines.view", async (req, res, me, acc) => send(res, 200, acc.loadings || []));
 route("POST", "/api/loadings", "loadings.create", async (req, res, me, acc) => {
   const b = await readBody(req);
