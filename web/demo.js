@@ -63,11 +63,12 @@
     const ing = new Map(INGR.map(([name, unit, pack_size, pack_price]) => [name, add({ name, kind: "ingredient", unit, pack_size, pack_price })]));
     const seen = new Set();
     [["tcn", TCN], ["snack", SNACK]].forEach(([kind, list]) => list.forEach(([, name, price]) => {
-      if (!seen.has(name)) { seen.add(name); add({ name, kind: "item", cost: COST(name, price, kind) }); } }));
+      if (!seen.has(name)) { seen.add(name); const marked = /вода|кола|рич|сок|red bull|бонаква/i.test(name);
+        add({ name, kind: "item", cost: COST(name, price, kind), ...(marked ? { subject: "commodity_marked", gtin: "0460" + String(1000000000 + out.length * 7919).slice(0, 10) } : {}) }); } }));
     COFFEE.forEach(([, name]) => add({ name, kind: "recipe", components: (RECIPES[name] || []).map(([n, qty]) => ({ iid: ing.get(n).id, qty })) }));
     return out;
   }
-  function products() { return ST.get("products2", null) || defaultProducts(); }
+  function products() { return ST.get("products3", null) || defaultProducts(); }
   function defaultPlanogram(m) {
     const byName = new Map(products().map((p) => [p.name, p.id])), cells = {};
     MENU[m.kind].forEach(([btn, name]) => { cells[btn] = { pid: byName.get(name), cap: m.kind === "coffee" ? null : (m.kind === "tcn" ? (TCN_CAP[btn] || 6) : 9) }; });
@@ -139,10 +140,11 @@
       const a = ST.get("account", { name: "Мой вендинг", vendista: { login: "", password_set: false, token_set: false } });
       if (opt.method === "PUT") { const b = opt.body, v = a.vendista || {};
         if (b.name) a.name = b.name;
+        if (b.fiscal) a.fiscal = { ...(a.fiscal || {}), ...b.fiscal };
         if (b.vendista) { v.login = b.vendista.login ?? v.login; if (b.vendista.password) v.password_set = true; if (b.vendista.token !== undefined) v.token_set = !!b.vendista.token; v.updated = new Date().toISOString(); v.checked = null; }
         a.vendista = v; ST.set("account", a); }
       const v = a.vendista || {};
-      return { id: "1", name: a.name, vendista: { ...v, configured: !!(v.token_set || (v.login && v.password_set)) } };
+      return { id: "1", name: a.name, fiscal: { vat: "none", subject: "commodity", tax_system: "usn_income_outcome", ...(a.fiscal || {}) }, vendista: { ...v, configured: !!(v.token_set || (v.login && v.password_set)) } };
     }
     if (path === "/account/vendista/check") return { ok: false, error: "Демо-режим: настоящая Вендиста не подключается. На сервере здесь будет реальная проверка." };
     if (path === "/users") return { users: [{ login: "demo", name: "Демо", role: "owner", role_title: "Владелец", active: true }],
@@ -164,7 +166,7 @@
       try { localStorage.setItem("demo.refunded", JSON.stringify([...refunded])); } catch (e) {}
       return { ok: true };
     }
-    if (path === "/products") { if (opt.method === "PUT") { ST.set("products2", opt.body); return { ok: true }; } return products(); }
+    if (path === "/products") { if (opt.method === "PUT") { ST.set("products3", opt.body); return { ok: true }; } return products(); }
     if (path === "/planograms") return planograms();
     if (path.startsWith("/planograms/") && opt.method === "PUT") { const all = ST.get("planograms", {}); all[path.split("/")[2]] = opt.body; ST.set("planograms", all); return { ok: true }; }
     if (path === "/loadings") {

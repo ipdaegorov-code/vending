@@ -333,6 +333,9 @@ tr.refunded .nm{text-decoration:line-through}
 .accf{display:flex;flex-direction:column;gap:12px;padding:0 16px 16px}
 .vbox{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
 .vbox legend{font-weight:700;font-size:14px;padding:0 6px}
+.tlink{all:unset;cursor:pointer;color:var(--ink);font-weight:500;border-bottom:1px dashed var(--line)}
+.tlink:focus-visible{outline:2px solid var(--accent)}
+.fb{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-top:2px}
 .rbtn{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:8px}
 .rbtn:focus-visible{outline:2px solid var(--accent)}
 .rl small.wrap{white-space:normal;line-height:1.35}
@@ -750,6 +753,7 @@ async function loadDB(){
   const safe=async(p,d)=>{try{return await api(p)}catch(e){if(e instanceof NeedLogin)throw e;return d}};
   const [products,planograms,loadings]=await Promise.all([safe("/products",[]),safe("/planograms",{}),safe("/loadings",[])]);
   DB={products,planograms,loadings};btnIdx=null;
+  if(can("account.manage"))try{const a=await api("/account");if(a.fiscal)FISCAL=a.fiscal}catch(e){}
 }
 const prodById=id=>DB.products.find(p=>p.id===id);
 const prodName=id=>(prodById(id)||{}).name||"—";
@@ -757,6 +761,12 @@ const kindOf=p=>p.kind==="recipe"||p.kind==="ingredient"?p.kind:"item";
 const unitCost=i=>i&&i.pack_size?(+i.pack_price||0)/(+i.pack_size):0;   // ₽ за 1 г / мл / шт
 const recipeCost=p=>(p.components||[]).reduce((a,c)=>a+unitCost(prodById(c.iid))*(+c.qty||0),0);
 const costOfProduct=p=>!p?0:kindOf(p)==="recipe"?recipeCost(p):+p.cost||0;
+/* чеки: значения как в 54-ФЗ / ФФД 1.2 */
+const VAT_T={none:"Без НДС (не облагается)","0":"0%","5":"5%","7":"7%","10":"10%","20":"20%","22":"22%","5/105":"5/105","7/107":"7/107","10/110":"10/110","20/120":"20/120","22/122":"22/122"};
+const SUBJ_T={commodity:"Товар",commodity_marked:"Товар с маркировкой («Честный знак»)",excise:"Подакцизный товар",service:"Услуга"};
+const TAX_T={osn:"ОСН",usn_income:"УСН доход",usn_income_outcome:"УСН доход минус расход",esn:"ЕСХН",patent:"Патент"};
+let FISCAL={vat:"none",subject:"commodity",tax_system:"usn_income_outcome"};
+const optList=(T,cur,inherit)=>(inherit?`<option value="">По умолчанию: ${esc(T[inherit])}</option>`:"")+Object.entries(T).map(([k,v])=>`<option value="${k}" ${cur===k?"selected":""}>${esc(v)}</option>`).join("");
 const money2=v=>v.toLocaleString("ru-RU",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₽";
 const unitMoney=v=>v.toLocaleString("ru-RU",{maximumFractionDigits:v<1?3:2})+" ₽";
 const shortName=n=>String(n||"").replace(/\s+\d+([,.]\d+)?\s*(л|г|мл)\.?$/i,"").replace(/^(\d+[,.]?\d*\s*(Л|Г|МЛ)\.?\s*)/i,"").slice(0,14);
@@ -968,16 +978,16 @@ function pageSettings(){
     const T={item:["Товары для снековых","Поиск товара","+ Товар"],ingredient:["Ингредиенты для кофе","Поиск ингредиента","+ Ингредиент"],recipe:["Рецепты для кофейных","Поиск рецепта","+ Рецепт"]}[pKind];
     let list;
     if(pKind==="item")list=`<div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Цена</th><th class="r">Себестоимость</th></tr></thead><tbody>
-      ${ps.map(p=>{const pr=lastPrice.get(p.name);return `<tr><td>${esc(p.name)}</td><td class="r">${pr!=null?pr+" ₽":"—"}</td>
+      ${ps.map(p=>{const pr=lastPrice.get(p.name);return `<tr><td><button type="button" class="tlink" data-edititem="${p.id}">${esc(p.name)}</button>${fiscalBadges(p)}</td><td class="r">${pr!=null?pr+" ₽":"—"}</td>
         <td class="r">${can("catalog.edit")?"":`${p.cost??"—"}`}${can("catalog.edit")?`<input class="costin" type="number" inputmode="decimal" min="0" step="0.01" id="cost-${p.id}" data-cost="${p.id}" value="${p.cost??""}" aria-label="Себестоимость ${esc(p.name)}">`:""} ₽</td></tr>`}).join("")}</tbody></table></div>
-      <p class="txnote" style="padding:0 16px 14px">Цена берётся из продаж — её задаёт автомат. Себестоимость нужна для прибыли в отчётах.</p>`;
+      <p class="txnote" style="padding:0 16px 14px">Цена берётся из продаж — её задаёт автомат. Себестоимость нужна для прибыли в отчётах. Нажмите на название, чтобы указать данные для чека: название в чеке, НДС, штрихкод, маркировку.</p>`;
     else if(pKind==="ingredient")list=`<ul class="rlist">${ps.map(i=>{const used=DB.products.filter(r=>kindOf(r)==="recipe"&&(r.components||[]).some(c=>c.iid===i.id)).length;
       return `<li><button type="button" class="rbtn" data-editing="${i.id}"><span class="rl"><b>${esc(i.name)}</b><small>${i.pack_size?`${i.pack_size} ${i.unit} за ${rub(+i.pack_price||0)}`:"цена не указана"} · в ${used} рецептах</small></span>
         <span class="rr"><b>${unitMoney(unitCost(i))}</b><small>за 1 ${esc(i.unit||"шт")}</small></span></button></li>`}).join("")||`<li class="empty">Нет ингредиентов</li>`}</ul>
       <p class="txnote" style="padding:0 16px 14px">Укажите, как вы покупаете: например, «1000 г за 1500 ₽». Цена за грамм посчитается сама и пойдёт во все рецепты.</p>`;
     else list=`<ul class="rlist">${ps.map(r=>{const c=recipeCost(r),pr=lastPrice.get(r.name);
       const comp=(r.components||[]).map(x=>{const i=prodById(x.iid);return i?`${shortName(i.name).toLowerCase()} ${x.qty} ${i.unit}`:""}).filter(Boolean).join(" · ");
-      return `<li><button type="button" class="rbtn" data-editrec="${r.id}"><span class="rl"><b>${esc(r.name)}</b><small class="wrap">${esc(comp)||"состав не указан"}</small></span>
+      return `<li><button type="button" class="rbtn" data-editrec="${r.id}"><span class="rl"><b>${esc(r.name)}${fiscalBadges(r)}</b><small class="wrap">${esc(comp)||"состав не указан"}</small></span>
         <span class="rr"><b>${money2(c)}</b><small>${pr!=null?`цена ${pr} ₽ · наценка ${c?Math.round((pr-c)/c*100)+"%":"—"}`:"себестоимость"}</small></span></button></li>`}).join("")||`<li class="empty">Нет рецептов</li>`}</ul>
       <p class="txnote" style="padding:0 16px 14px">Себестоимость рецепта = сумма ингредиентов. Меняете цену кофе в «Ингредиентах», и пересчитываются все рецепты.</p>`;
     body=`<div class="ph"><h2>${T[0]}</h2></div>
@@ -1009,6 +1019,12 @@ function pageSettings(){
           :`<label class="fl" for="v-token">API-ключ (токен) Вендисты<input class="search2" id="v-token" type="password" autocomplete="off" placeholder="${v.token_set?"сохранён — оставьте пустым, чтобы не менять":"вставьте ключ"}"></label>`}
           <p class="txnote">Доступ хранится только на сервере, в зашифрованном виде. Приложение и телефон его не видят.${me.test?" Сейчас тестовый режим: из Вендисты только читаем.":""}</p>
         </fieldset>
+        <fieldset class="vbox"><legend>Чеки: значения по умолчанию</legend>
+          <p class="txnote">Касса: Инитпро. Применяются ко всем товарам и рецептам, если у товара не задано своё.</p>
+          <label class="fl" for="f-tax">Система налогообложения<select class="search2" id="f-tax">${optList(TAX_T,(a.fiscal||{}).tax_system)}</select></label>
+          <label class="fl" for="f-vat">НДС<select class="search2" id="f-vat">${optList(VAT_T,(a.fiscal||{}).vat)}</select></label>
+          <label class="fl" for="f-subj">Предмет расчёта<select class="search2" id="f-subj">${optList(SUBJ_T,(a.fiscal||{}).subject)}</select></label>
+        </fieldset>
         <div class="row-btns" style="justify-content:flex-start"><button type="submit" class="btn primary">Сохранить</button><button type="button" class="btn" id="vCheck" ${v.configured?"":"disabled"}>Проверить подключение</button></div>
       </form>
       ${us?`<div class="ph"><h2>Пользователи</h2><small>роли операторов появятся позже</small></div><ul class="rlist">${us.users.map(u=>`<li><span class="rl"><b>${esc(u.name||u.login)}</b><small>${esc(u.login)}</small></span><span class="rr"><b>${esc(u.role_title)}</b><small>${u.role==="owner"?"видит всё":""}</small></span></li>`).join("")}</ul>`:""}`;
@@ -1022,6 +1038,40 @@ function pageSettings(){
   return `<div class="seg tabs" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-stab="${v}" aria-pressed="${sTab===v}" aria-selected="${sTab===v}">${l}</button>`).join("")}</div><section class="panel">${body}</section>`;
 }
 async function saveProducts(){try{await api("/products",null,{method:"PUT",body:DB.products});toast("Сохранено")}catch(e){toast("Не сохранилось: "+e.message)}}
+function fiscalBadges(p){const b=[];if(p.receipt_name&&p.receipt_name!==p.name)b.push("своё название в чеке");if(p.subject==="commodity_marked"||p.gtin)b.push("маркировка");if(p.vat)b.push("НДС "+VAT_T[p.vat]);
+  return b.length?`<span class="fb">${b.map(esc).join(" · ")}</span>`:""}
+// блок «Для чека» — общий для товара и рецепта
+function fiscalFields(p){const marked=p.subject==="commodity_marked";
+  return `<fieldset class="vbox"><legend>Для чека</legend>
+    <label class="fl" for="fx-rname">Название в чеке<input class="search2" id="fx-rname" value="${esc(p.receipt_name||"")}" maxlength="128" placeholder="${esc(p.name||"как в каталоге")}"></label>
+    <label class="fl" for="fx-subj">Предмет расчёта<select class="search2" id="fx-subj">${optList(SUBJ_T,p.subject||"",FISCAL.subject)}</select></label>
+    <label class="fl" for="fx-vat">НДС<select class="search2" id="fx-vat">${optList(VAT_T,p.vat||"",FISCAL.vat)}</select></label>
+    ${p.kind==="recipe"?"":`<label class="fl" for="fx-bar">Штрихкод<input class="search2" id="fx-bar" inputmode="numeric" value="${esc(p.barcode||"")}" placeholder="необязательно"></label>
+    <label class="fl" for="fx-gtin">GTIN (только для маркированных)<input class="search2" id="fx-gtin" inputmode="numeric" value="${esc(p.gtin||"")}" placeholder="${marked?"нужен для маркированного товара":"необязательно"}"></label>`}
+    <p class="txnote">Пустые поля берут значения по умолчанию из Настройки → Аккаунт → Чеки.</p></fieldset>`}
+function readFiscal(p){const g=id=>{const e=$(id);return e?e.value.trim():""};
+  const o={...p,receipt_name:g("fx-rname")||undefined,subject:g("fx-subj")||undefined,vat:g("fx-vat")||undefined};
+  if(p.kind!=="recipe"){o.barcode=g("fx-bar")||undefined;o.gtin=g("fx-gtin")||undefined;
+    if(o.barcode&&!/^\d{6,14}$/.test(o.barcode))throw new Error("Штрихкод: только цифры, 6–14 знаков");
+    if(o.gtin&&!/^\d{8,14}$/.test(o.gtin))throw new Error("GTIN: только цифры, 8–14 знаков");
+    if(o.subject==="commodity_marked"&&!o.gtin)throw new Error("Для маркированного товара укажите GTIN")}
+  return o}
+function openItem(id){
+  const p=id?{...prodById(id)}:{name:"",kind:"item",cost:""};
+  const inUse=id&&Object.values(DB.planograms).some(pl=>Object.values(pl.cells).some(c=>c.pid===id));
+  sheet(`<h3>${id?"Товар":"Новый товар"}</h3>
+    <label class="fl" for="it-name">Название<input class="search2" id="it-name" value="${esc(p.name)}" maxlength="128"></label>
+    <label class="fl" for="it-cost">Себестоимость, ₽<input class="search2" id="it-cost" type="number" inputmode="decimal" step="0.01" min="0" value="${p.cost??""}"></label>
+    ${fiscalFields(p)}
+    <div class="row-btns">${id&&!inUse?`<button type="button" class="btn ghost" id="it-del">Удалить</button>`:""}<button type="button" class="btn" id="it-no">Отмена</button><button type="button" class="btn primary" id="it-ok">Сохранить</button></div>`,
+  (el,close)=>{$("it-no").onclick=close;
+    if($("it-del"))$("it-del").onclick=async()=>{DB.products=DB.products.filter(x=>x.id!==id);await saveProducts();close();render()};
+    $("it-ok").onclick=async()=>{const name=$("it-name").value.trim();if(!name)return $("it-name").focus();
+      let o;try{o=readFiscal({...p,name,cost:Math.max(0,+$("it-cost").value||0)})}catch(e){return toast(e.message)}
+      if(id)DB.products=DB.products.map(x=>x.id===id?o:x);else DB.products.push({...o,id:newId()});
+      await saveProducts();close();render()};
+    if(!id)$("it-name").focus()});
+}
 function sheet(html,onMount){$("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:90vh;overflow:auto">${html}</div></div>`;
   const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});onMount($("sheetRoot").querySelector(".sheet"),close)}
 const newId=()=>Math.max(0,...DB.products.map(p=>p.id))+1;
@@ -1058,6 +1108,7 @@ function openRecipe(id){
     <div class="fl">Состав на одну порцию</div><ul class="rcl" id="rc-list"></ul>
     <button type="button" class="btn" id="rc-add" ${ings.length?"":"disabled"}>+ Ингредиент</button>
     <div class="calc" id="rc-total"></div>
+    ${fiscalFields(r)}
     <div class="row-btns">${id?`<button type="button" class="btn ghost" id="rc-del">Удалить</button>`:""}<button type="button" class="btn" id="rc-no">Отмена</button><button type="button" class="btn primary" id="rc-ok">Сохранить</button></div>`,
   (el,close)=>{draw();
     el.addEventListener("change",e=>{const k=e.target.dataset.rc;if(k!=null){r.components[k].iid=+e.target.value;draw()}});
@@ -1070,7 +1121,7 @@ function openRecipe(id){
       if(inUse){toast("Рецепт стоит в планограмме кофейного автомата — сначала уберите его оттуда");return}
       DB.products=DB.products.filter(p=>p.id!==id);await saveProducts();close();render()};
     $("rc-ok").onclick=async()=>{const name=$("rc-name").value.trim();if(!name)return $("rc-name").focus();
-      const o={...r,name,components:r.components.filter(c=>c.qty>0)};
+      let o;try{o=readFiscal({...r,name,components:r.components.filter(c=>c.qty>0)})}catch(e){return toast(e.message)}
       if(id)DB.products=DB.products.map(p=>p.id===id?o:p);else DB.products.push({...o,id:newId()});
       await saveProducts();close();render()};
     if(!id)$("rc-name").focus()});
@@ -1172,7 +1223,8 @@ document.addEventListener("click",e=>{
   if(t.dataset.pkind){pKind=t.dataset.pkind;LS.set("pKind",pKind);prodQ="";render();return}
   if(t.dataset.rp){rp=+t.dataset.rp;LS.set("rp",rp);render();return}
   if(t.dataset.loadm){openLoading(M.find(x=>x.id===t.dataset.loadm));return}
-  if(t.id==="prodAdd"){pKind==="ingredient"?openIngredient(null):pKind==="recipe"?openRecipe(null):openProductAdd();return}
+  if(t.id==="prodAdd"){pKind==="ingredient"?openIngredient(null):pKind==="recipe"?openRecipe(null):openItem(null);return}
+  if(t.dataset.edititem){if(can("catalog.edit"))openItem(+t.dataset.edititem);return}
   if(t.dataset.editing){if(can("catalog.edit"))openIngredient(+t.dataset.editing);return}
   if(t.dataset.editrec){if(can("catalog.edit"))openRecipe(+t.dataset.editrec);return}
   if(t.id==="setGroups"){openGroups();return}
@@ -1196,11 +1248,11 @@ document.addEventListener("change",e=>{
   const pk=e.target.dataset&&e.target.dataset.pick;if(pk){const set=ldPick[e.target.dataset.pk];e.target.checked?set.add(pk):set.delete(pk);render()}
 });
 document.addEventListener("submit",async e=>{if(e.target.id!=="accForm")return;e.preventDefault();
-  const body={name:$("acc-name").value.trim(),vendista:{}};
+  const body={name:$("acc-name").value.trim(),vendista:{},fiscal:{tax_system:$("f-tax").value,vat:$("f-vat").value,subject:$("f-subj").value}};
   if(vMode==="login"){body.vendista.login=$("v-login").value.trim();if($("v-pass").value)body.vendista.password=$("v-pass").value;body.vendista.token=null}
   else{const t=$("v-token").value.trim();if(t)body.vendista.token=t}
   if(!body.name)return toast("Укажите название аккаунта");
-  try{await api("/account",null,{method:"PUT",body});accCache=null;me=await api("/me");toast("Сохранено");stamp();render()}catch(err){toast("Не сохранилось: "+err.message)}});
+  try{const a=await api("/account",null,{method:"PUT",body});if(a&&a.fiscal)FISCAL=a.fiscal;else FISCAL={...FISCAL,...body.fiscal};accCache=null;me=await api("/me");toast("Сохранено");stamp();render()}catch(err){toast("Не сохранилось: "+err.message)}});
 function confirmLeave(fn){
   $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true"><h3>Планограмма не сохранена</h3><p>Уйти и потерять изменения?</p>
     <div class="row-btns"><button type="button" class="btn" id="clNo">Остаться</button><button type="button" class="btn primary" id="clYes">Уйти без сохранения</button></div></div></div>`;

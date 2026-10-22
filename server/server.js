@@ -259,8 +259,13 @@ function range(q) {
   return [from.toISOString(), to.toISOString()];
 }
 const bad = (msg, code = 400) => Object.assign(new Error(msg), { code });
+// чековые настройки по умолчанию для всех товаров аккаунта
+const FISCAL_DEFAULT = { vat: "none", subject: "commodity", tax_system: "usn_income_outcome" };
+const VATS = ["none", "0", "5", "7", "10", "20", "22", "5/105", "7/107", "10/110", "20/120", "22/122"];
+const SUBJECTS = ["commodity", "commodity_marked", "excise", "service"];
+const TAX_SYSTEMS = ["osn", "usn_income", "usn_income_outcome", "esn", "patent"];
 const accountView = (a) => ({
-  id: a.id, name: a.name,
+  id: a.id, name: a.name, fiscal: { ...FISCAL_DEFAULT, ...(a.fiscal || {}) },
   vendista: { login: a.vendista.login || "", password_set: !!a.vendista.password, token_set: !!a.vendista.token,
     configured: !!(a.vendista.token || (a.vendista.login && a.vendista.password)), updated: a.vendista.updated || null, checked: a.vendista.checked || null },
 });
@@ -291,6 +296,13 @@ route("GET", "/api/account", "account.manage", async (req, res, me, acc) => send
 route("PUT", "/api/account", "account.manage", async (req, res, me, acc) => {
   const b = await readBody(req);
   if (b.name != null) { const n = String(b.name).trim(); if (!n) throw bad("Укажите название аккаунта"); acc.name = n.slice(0, 80); }
+  if (b.fiscal) {
+    const f = { ...FISCAL_DEFAULT, ...(acc.fiscal || {}) };
+    if (b.fiscal.vat != null) { if (!VATS.includes(b.fiscal.vat)) throw bad("Неизвестная ставка НДС"); f.vat = b.fiscal.vat; }
+    if (b.fiscal.subject != null) { if (!SUBJECTS.includes(b.fiscal.subject)) throw bad("Неизвестный предмет расчёта"); f.subject = b.fiscal.subject; }
+    if (b.fiscal.tax_system != null) { if (!TAX_SYSTEMS.includes(b.fiscal.tax_system)) throw bad("Неизвестная система налогообложения"); f.tax_system = b.fiscal.tax_system; }
+    acc.fiscal = f; audit(me, "fiscal_settings_changed", f);
+  }
   if (b.vendista) { // секреты только записываются: пустое поле — оставить как было
     const v = b.vendista, cur = acc.vendista || {};
     const next = { ...cur, login: v.login != null ? String(v.login).trim() : cur.login };
@@ -327,7 +339,9 @@ route("POST", "/api/refund", "refunds.create", async (req, res, me, acc) => {
 });
 
 // данные приложения, привязанные к аккаунту
-const validProducts = (arr) => Array.isArray(arr) && arr.every((p) => p && Number.isInteger(p.id) && typeof p.name === "string" && ["item", "ingredient", "recipe"].includes(p.kind || "item"));
+const validProducts = (arr) => Array.isArray(arr) && arr.every((p) => p && Number.isInteger(p.id) && typeof p.name === "string" && ["item", "ingredient", "recipe"].includes(p.kind || "item")
+  && (p.vat == null || VATS.includes(p.vat)) && (p.subject == null || SUBJECTS.includes(p.subject))
+  && (p.gtin == null || p.gtin === "" || /^\d{8,14}$/.test(p.gtin)) && (p.barcode == null || p.barcode === "" || /^\d{6,14}$/.test(p.barcode)));
 route("GET", "/api/products", "sales.view", async (req, res, me, acc) => send(res, 200, acc.products || []));
 route("PUT", "/api/products", "catalog.edit", async (req, res, me, acc) => {
   const b = await readBody(req);
