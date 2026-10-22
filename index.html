@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d5bd1">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Вендинг">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Вендинг</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: configurable stack of blocks; main block = machine list (left) + selected machine's day (right), stacks on phones. Same identity as the planogram editor. */
+:root{
+  --bg:#eaeef2; --surface:#ffffff; --surface-2:#f4f6f9; --ink:#15202b; --muted:#5b6978; --line:#d3dae2;
+  --accent:#1d5bd1; --accent-ink:#ffffff; --accent-soft:#e3ebfb; --bar:#9db7ea; --bar-today:#1d5bd1;
+  --ok:#1d7a4a; --warn:#a85a07; --bad:#b42318; --warn-soft:#fdf0e1; --bad-soft:#fde8e6;
+  --display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --surface:#171f28; --surface-2:#1d2732; --ink:#e6ecf2; --muted:#93a1b1; --line:#2b3644;
+  --accent:#6f9cff; --accent-ink:#0b1220; --accent-soft:#1c2a45; --bar:#34507f; --bar-today:#6f9cff;
+  --ok:#5fd19a; --warn:#f0a85a; --bad:#ff8a7d; --warn-soft:#33240f; --bad-soft:#3a1915; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --surface:#171f28; --surface-2:#1d2732; --ink:#e6ecf2; --muted:#93a1b1; --line:#2b3644;
+  --accent:#6f9cff; --accent-ink:#0b1220; --accent-soft:#1c2a45; --bar:#34507f; --bar-today:#6f9cff;
+  --ok:#5fd19a; --warn:#f0a85a; --bad:#ff8a7d; --warn-soft:#33240f; --bad-soft:#3a1915; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(20px,3.4vw,28px);margin:2px 0 0;letter-spacing:-.01em}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:9px;font-weight:600;font-size:14px}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px 8px;flex-wrap:wrap}
+.ph h2{font-size:15px;margin:0;font-weight:700}
+.ph small{color:var(--muted);font-size:12.5px}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted)}
+.tabs{display:flex;width:100%}
+.tabs button{flex:1 1 0;padding:7px 4px;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+
+/* summary */
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.sum > div{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.sum .l{font-size:12.5px;color:var(--muted);font-weight:600}
+.sum .v{font-family:var(--mono);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sum .s{font-size:12.5px;color:var(--muted)}
+.up{color:var(--ok);font-weight:600}.down{color:var(--bad);font-weight:600}
+
+/* chart */
+.chart{padding:4px 12px 12px;overflow-x:auto}
+.chart svg{display:block;width:100%;height:auto}
+.chart .hit{fill:transparent;cursor:pointer}
+.chart .val{fill:var(--ink);font-weight:700;font-size:10.5px}
+.chart rect.sel{fill:var(--accent)}
+.readout{padding:0 16px 2px;font-size:14px;color:var(--muted);min-height:22px}
+.readout b{color:var(--ink);font-family:var(--mono)}
+.chart text{fill:var(--muted);font-family:var(--mono);font-size:10px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+
+/* attention */
+.att{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 14px}
+.att button{all:unset;cursor:pointer;display:inline-flex;gap:8px;align-items:center;padding:7px 11px;border-radius:10px;font-size:13.5px;background:var(--warn-soft);color:var(--warn)}
+.att button.bad{background:var(--bad-soft);color:var(--bad)}
+.att button b{font-weight:700}
+.att .none{color:var(--muted);font-size:14px}
+
+/* machines + day */
+.split{display:grid;grid-template-columns:1fr;gap:0}
+@media (min-width:900px){.split{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}.split .left{border-right:1px solid var(--line)}}
+.mlist{list-style:none;margin:0;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px}
+.mrow{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:10px}
+.mrow:hover{background:var(--surface-2)}
+.mrow[aria-pressed="true"]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.mrow:focus-visible{outline:2px solid var(--accent)}
+.st{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+.st.warn{background:var(--warn)}.st.bad{background:var(--bad)}.st.all{background:var(--accent);border-radius:2px}
+.mrow .t{display:flex;flex-direction:column;min-width:0}
+.mrow .n{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .loc{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .r{text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.mrow .r .num{font-weight:700;font-size:14px}
+.mrow .r small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.mrow .r small.warn{color:var(--warn)}.mrow .r small.bad{color:var(--bad)}
+.type{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+
+.day{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.dayh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;padding-top:14px}
+.dayh h3{margin:0;font-size:16px;font-weight:700}
+.dayh p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.nav{display:inline-flex;align-items:center;gap:4px}
+.nav button{border:1px solid var(--line);background:var(--surface);width:32px;height:32px;border-radius:8px;font-weight:700}
+.nav button:disabled{opacity:.35;cursor:default}
+.nav span{min-width:104px;text-align:center;font-weight:600;font-size:14px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:480px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface-2);border-radius:10px;padding:8px 10px}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:600}
+.kpi .v{font-family:var(--mono);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+.hours{display:flex;flex-direction:column;gap:4px}
+.hbars{display:flex;align-items:flex-end;gap:2px;height:64px}
+.hbars button{all:unset;cursor:pointer;flex:1 1 0;height:100%;display:flex;align-items:flex-end}
+.hbars button span{display:block;width:100%;border-radius:2px 2px 0 0;background:var(--bar)}
+.hbars button[aria-pressed="true"] span{background:var(--accent)}
+.hbars button:focus-visible{outline:2px solid var(--accent)}
+.hlab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.hread{font-size:13px;color:var(--muted);min-height:20px}
+.hread b{color:var(--ink);font-family:var(--mono)}
+.gchips{display:flex;gap:6px;overflow-x:auto;padding:0 16px 10px;scrollbar-width:none}
+.gchips::-webkit-scrollbar{display:none}
+.gchips button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;white-space:nowrap}
+.gchips button span{color:var(--muted);font-weight:500;font-family:var(--mono);font-size:11.5px}
+.gchips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.gchips button[aria-pressed="true"] span{color:inherit;opacity:.8}
+.mpick{display:none}
+.ptrig{width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);text-align:left}
+.ptrig[aria-expanded="true"]{border-color:var(--accent);border-bottom-left-radius:0;border-bottom-right-radius:0}
+.pn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptrig .num{font-weight:700}
+.chev{color:var(--muted)}
+.pdrop{border:1px solid var(--accent);border-top:0;border-radius:0 0 12px 12px;background:var(--surface);padding-top:10px}
+.pdrop .gchips{padding:0 10px 8px}
+.plist2{list-style:none;margin:0;padding:0 6px 6px;max-height:55vh;overflow-y:auto}
+.plist2 button{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 8px;border-radius:9px}
+.plist2 button[aria-pressed="true"]{background:var(--accent-soft)}
+.plist2 button:focus-visible{outline:2px solid var(--accent)}
+.plist2 .num{font-weight:700;font-size:14px}
+@media (max-width:899px){.split .left{display:none}.mpick{display:block}.day{padding-top:14px}}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line)}
+td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.share{height:4px;border-radius:2px;background:var(--accent);margin-top:4px;opacity:.55}
+.pay{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.pay.cash{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.tblwrap{overflow-x:auto;max-height:420px;overflow-y:auto}
+.mrow .r small .up,.mrow .r small .down{font-weight:700}
+.card{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.rf{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:3px 9px;font-size:12.5px;font-weight:600;color:var(--bad)}
+.rf:hover{background:var(--bad-soft)}
+tr.refunded td{color:var(--muted)}
+tr.refunded .nm{text-decoration:line-through}
+.tag{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--bad-soft);color:var(--bad)}
+.txnote{font-size:12.5px;color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:20px 0;text-align:center}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgb(8 12 18 / .45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:700px){.scrim{align-items:center}}
+.sheet{background:var(--surface);width:min(480px,100%);border-radius:16px 16px 0 0;border:1px solid var(--line);
+  padding:18px max(18px,env(safe-area-inset-left,0px)) calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+@media (min-width:700px){.sheet{border-radius:16px}}
+.sheet h3{margin:0;font-family:var(--display);font-size:17px}
+.sheet p{margin:0;color:var(--muted);font-size:14px}
+.blist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;touch-action:none}
+.blist li{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);position:relative}
+.blist li.dragging{z-index:2;box-shadow:0 8px 24px rgb(0 0 0 / .18);border-color:var(--accent)}
+.blist li.off .bn{color:var(--muted)}
+.grip{cursor:grab;font-size:20px;line-height:1;color:var(--muted);padding:8px 6px;border-radius:6px;touch-action:none;user-select:none}
+.blist li.dragging .grip{cursor:grabbing;color:var(--accent)}
+.bn{flex:1;font-weight:600;font-size:14.5px}
+.sw{position:relative;width:46px;height:28px;flex:0 0 auto;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.sw span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .15s}
+.sw span::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:transform .15s}
+.sw input:checked + span{background:var(--accent)}
+.sw input:checked + span::after{transform:translateX(18px)}
+.sw input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.sw span,.sw span::after{transition:none}}
+.row-btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.glist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.glist li{display:flex;gap:6px}
+.glist input{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);font-weight:600}
+.gm{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:8px}
+.gm label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0}
+.gm label span{display:flex;flex-direction:column;min-width:0}
+.gm label b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gm label small{font-size:12px;color:var(--muted)}
+.gm select{max-width:48%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.login{max-width:440px;margin:24px auto;display:flex;flex-direction:column;gap:12px;padding:20px}
+.login h2{margin:0;font-family:var(--display);font-size:18px}
+.login p{margin:0;color:var(--muted);font-size:14px}
+.login label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.login input{padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:15px;color:var(--ink)}
+.login .err{color:var(--bad);font-size:14px;font-weight:600}
+.loading{padding:28px 20px;text-align:center;color:var(--muted)}
+.bar2{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin:12px auto 0;max-width:320px}
+.bar2 span{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+</style>
+
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow" id="fresh">Телеметрон · живые данные</div>
+      <h1>Обзор</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="topBtns" hidden>
+      <button class="btn" id="reload" type="button">Обновить</button>
+      <button class="btn" id="cfg" type="button">Настроить экран</button>
+      <button class="btn" id="logout" type="button">Выйти</button>
+    </div>
+  </header>
+  <div id="blocks" class="wrap" style="max-width:none;margin:0"></div>
+</div>
+<div id="sheetRoot"></div>
+
+<script>
+(() => {
+/* ---------- Telemetron API (runs in the browser; credentials stay on this device) ---------- */
+const API="https://api.telemetron.net";
+const LS={get(k){try{return JSON.parse(localStorage.getItem("tm."+k))}catch(e){return null}},
+  set(k,v){try{localStorage.setItem("tm."+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem("tm."+k)}catch(e){}}};
+let auth=LS.get("auth");
+class NeedLogin extends Error{}
+async function tokenReq(body){
+  const r=await fetch(API+"/auth/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({scope:"teleport",...body})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.message||j.error_description||j.error||("Ошибка входа "+r.status));
+  return j;
+}
+function keep(j){auth.access_token=j.access_token;if(j.refresh_token)auth.refresh_token=j.refresh_token;auth.exp=Date.now()+((j.expires_in||86400)-120)*1000;LS.set("auth",auth)}
+async function login(cid,cs,user,pass){
+  const j=await tokenReq({grant_type:"password",client_id:cid,client_secret:cs,username:user,password:pass});
+  auth={client_id:cid,client_secret:cs};LS.set("client",{client_id:cid,client_secret:cs});keep(j);
+}
+async function refreshToken(){
+  try{keep(await tokenReq({grant_type:"refresh_token",refresh_token:auth.refresh_token,client_id:auth.client_id,client_secret:auth.client_secret}))}
+  catch(e){throw new NeedLogin()}
+}
+async function api(path,params){
+  if(!auth)throw new NeedLogin();
+  if(Date.now()>auth.exp)await refreshToken();
+  const url=API+"/v2"+path+(params?"?"+new URLSearchParams(params):"");
+  let r=await fetch(url,{headers:{Authorization:"Bearer "+auth.access_token}});
+  if(r.status===401){await refreshToken();r=await fetch(url,{headers:{Authorization:"Bearer "+auth.access_token}})}
+  if(r.status===401)throw new NeedLogin();
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error((j.message||"Ошибка сервера")+" ("+r.status+")")}
+  return r.json();
+}
+const pad=n=>String(n).padStart(2,"0");
+function iso(d){const o=-d.getTimezoneOffset(),sg=o>=0?"+":"-";return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sg}${pad(Math.floor(Math.abs(o)/60))}:${pad(Math.abs(o)%60)}`}
+async function pool(items,n,fn){const out=new Array(items.length);let i=0;await Promise.all(Array.from({length:n},async()=>{while(i<items.length){const k=i++;out[k]=await fn(items[k],k)}}));return out}
+
+/* ---------- data ---------- */
+let M=[], RAW={}, now=new Date(), DAY0, loadedAt=null, cashCodes=LS.get("cashCodes");
+const DAYS=30;
+function setNow(){now=new Date();DAY0=new Date(now.getFullYear(),now.getMonth(),now.getDate())}
+setNow();
+const dayDate=k=>new Date(DAY0.getTime()-k*864e5);
+const dkey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const isCash=pt=>cashCodes?cashCodes.includes(pt):pt===1;
+function rowsToItems(m,rows){
+  const out=[];
+  rows.forEach((r,i)=>{const t=new Date(r.time),n=Math.max(1,+r.number||1),v=+r.value||0;
+    for(let j=0;j<n;j++)out.push({id:m.id+"|"+r.time+"|"+r.layout_number+"|"+i+"|"+j,t,name:r.name||("Кнопка "+r.layout_number),price:Math.round(v/n*100)/100,
+      cash:isCash(r.payment_type),pt:r.payment_type,card:null,layout:r.layout_number,m})});
+  return out;
+}
+let byDay={};
+function index(){byDay={};M.forEach(m=>(RAW[m.id]||[]).forEach(s=>{const k=m.id+"|"+dkey(s.t);(byDay[k]||(byDay[k]=[])).push(s)}));
+  Object.values(byDay).forEach(a=>a.sort((x,y)=>x.t-y.t))}
+function sales(m,k){return byDay[m.id+"|"+dkey(dayDate(k))]||[]}
+async function fetchSales(m,since){
+  const rows=await api(`/vending_machines/${m.vmid}/stats/vends/payments`,{since:iso(since),until:iso(new Date()),local:1});
+  return rowsToItems(m,Array.isArray(rows)?rows:[]);
+}
+async function loadAll(progress){
+  setNow();
+  const vms=await api("/vending_machines",{local:1});
+  M=vms.map(v=>({vmid:v.id,id:"T"+v.id,name:v.name||("T"+v.id),model:(v.type&&v.type.name)||"",loc:(v.location&&v.location.name)||"",
+    addr:(v.location&&v.location.address)||"",type:(v.type&&v.type.label)==="snack"||/снек|snack|csc|tcn|fas/i.test(v.name+" "+((v.location&&v.location.name)||""))?"snack":"coffee",
+    state:v.state,service:v.service||{},last:v.last_event_dates||{}}));
+  const since=dayDate(DAYS-1);let done=0;
+  await pool(M,4,async m=>{try{RAW[m.id]=await fetchSales(m,since)}catch(e){if(e instanceof NeedLogin)throw e;RAW[m.id]=RAW[m.id]||[];m.err=e.message}progress&&progress(++done,M.length)});
+  if(!cashCodes)await detectCash().catch(()=>{});
+  index();loadedAt=new Date();
+}
+async function refreshToday(){
+  setNow();const since=DAY0;
+  await pool(M,4,async m=>{const fresh=await fetchSales(m,since);RAW[m.id]=(RAW[m.id]||[]).filter(s=>s.t<since).concat(fresh)});
+  index();loadedAt=new Date();
+}
+async function detectCash(){ // learn which payment_type means cash, from the busiest machine
+  const m=M.slice().sort((a,b)=>(RAW[b.id]||[]).length-(RAW[a.id]||[]).length)[0]; if(!m||!(RAW[m.id]||[]).length)return;
+  const rows=await api(`/vending_machines/${m.vmid}/stats/vends/payments`,{type:"cash",since:iso(dayDate(DAYS-1)),until:iso(new Date()),local:1});
+  const all=new Set(RAW[m.id].map(s=>s.pt)),c=new Set((rows||[]).map(r=>r.payment_type));
+  if(c.size&&c.size<all.size){cashCodes=[...c];LS.set("cashCodes",cashCodes);Object.values(RAW).flat().forEach(s=>s.cash=isCash(s.pt))}
+}
+let refunds=new Set();try{refunds=new Set(JSON.parse(localStorage.getItem("dash-refunds")||"[]"))}catch(e){}
+function saveRefunds(){try{localStorage.setItem("dash-refunds",JSON.stringify([...refunds]))}catch(e){}}
+const live=a=>a.filter(s=>!refunds.has(s.id));
+const sum=a=>a.reduce((x,s)=>x+(refunds.has(s.id)?0:s.price),0);
+const nowMin=()=>now.getHours()*60+now.getMinutes();
+function weekAgo(arr,k){return k===0?arr.filter(s=>s.t.getHours()*60+s.t.getMinutes()<=nowMin()):arr}
+function delta(cur,prev){if(!prev)return null;return Math.round((cur/prev-1)*100)}
+function dHtml(d){if(d===null)return "";return `<span class="${d>=0?"up":"down"}">${d>=0?"▲":"▼"} ${Math.abs(d)}%</span>`}
+function dText(d){return d===null?"":(d>=0?" ▲":" ▼")+Math.abs(d)+"%"}
+const rub=v=>v.toLocaleString("ru-RU")+" ₽";
+const ago=t=>{const mi=Math.max(0,Math.round((now-t)/6e4));if(mi<60)return mi+" мин назад";const h=Math.floor(mi/60);return h<24?h+" ч назад":Math.floor(h/24)+" дн назад"};
+function status(m){
+  const s=sales(m,0); const last=s.length?s[s.length-1].t:(m.last.last_sale?new Date(m.last.last_sale):null);
+  if(m.state===3)return {cls:"bad",text:"нет связи"};
+  if(m.state===2)return {cls:"bad",text:"не работает"};
+  if(m.err)return {cls:"warn",text:"данные не загрузились"};
+  if(m.service.no_recent_sales)return {cls:"warn",text:last?"нет продаж с "+ago(last).replace(" назад",""):"давно нет продаж"};
+  if(m.service.need_loading)return {cls:"warn",text:"нужна загрузка"};
+  return {cls:"",text:last?ago(last):"—"};
+}
+
+/* ---------- prefs ---------- */
+const BLOCKS={summary:"Итоги дня и недели",chart:"График продаж",attention:"Требуют внимания",machines:"Автоматы и продажи за день"};
+let prefs={order:["summary","chart","attention","machines"],hidden:[],range:7,metric:"sum",view:"summary",sel:"all",group:"all",dayK:0};
+try{Object.assign(prefs,JSON.parse(localStorage.getItem("dash-prefs-v2")||"{}"))}catch(e){}
+function savePrefs(){try{localStorage.setItem("dash-prefs-v2",JSON.stringify(prefs))}catch(e){}}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+/* ---------- blocks ---------- */
+function allSales(k){return M.flatMap(m=>sales(m,k))}
+function blockSummary(){
+  const t=allSales(0),y=allSales(1),w7=allSales(7).filter(s=>s.t.getHours()*60+s.t.getMinutes()<=now.getHours()*60+now.getMinutes());
+  let week=0,wn=0;for(let k=0;k<7;k++){const a=allSales(k);week+=sum(a);wn+=a.length}
+  const diff=w7.length?Math.round((sum(t)/sum(w7)-1)*100):0;
+  const cashless=t.length?Math.round(t.filter(s=>!s.cash).length/t.length*100):0;
+  return `<section class="sum">
+    <div><span class="l">Сегодня</span><span class="v">${rub(sum(t))}</span><span class="s">${live(t).length} продаж · <span class="${diff>=0?"up":"down"}">${diff>=0?"+":""}${diff}%</span> к тому же времени неделю назад</span></div>
+    <div><span class="l">Вчера</span><span class="v">${rub(sum(y))}</span><span class="s">${y.length} продаж · средний чек ${y.length?Math.round(sum(y)/y.length):0} ₽</span></div>
+    <div><span class="l">7 дней</span><span class="v">${rub(week)}</span><span class="s">${wn} продаж</span></div>
+    <div><span class="l">Безнал сегодня</span><span class="v">${cashless}%</span><span class="s">${t.filter(s=>s.cash).length} продаж наличными</span></div>
+  </section>`;
+}
+let chartDays=[];
+function fmtV(v){return prefs.metric==="sum"?rub(v):v+" шт."}
+function dayLabel(d){return d.toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"long"})}
+function blockChart(){
+  const R=prefs.range; chartDays=[];
+  for(let k=R-1;k>=0;k--){const a=allSales(k);chartDays.push({k,d:dayDate(k),v:prefs.metric==="sum"?sum(a):a.length})}
+  const cw=Math.min(1200,document.documentElement.clientWidth)-60;
+  const W=Math.max(300,Math.round(cw)),H=W<600?180:210,pl=34,pb=20,pt=R===7?18:8;
+  const max=Math.max(...chartDays.map(x=>x.v))*1.08||1;
+  const step=Math.pow(10,Math.floor(Math.log10(max/4))), tick=Math.ceil(max/4/step)*step;
+  const bw=(W-pl-4)/R;
+  const short=v=>prefs.metric==="sum"?(v>=1000?(v/1000).toFixed(v>=10000?0:1).replace(".",",")+"к":v):v;
+  let g="";for(let v=0;v<=max;v+=tick){const y=H-pb-(v/max)*(H-pb-pt);
+    g+=`<line class="grid" x1="${pl}" x2="${W}" y1="${y}" y2="${y}"/><text x="${pl-5}" y="${y+3}" text-anchor="end">${short(v)}</text>`}
+  const every=R<=14?1:3;
+  const bars=chartDays.map((x,i)=>{const h=(x.v/max)*(H-pb-pt),xx=pl+i*bw+bw*.15,w=bw*.7;
+    const lab=i%every===0||x.k===0?`<text x="${xx+w/2}" y="${H-5}" text-anchor="middle">${x.d.getDate()}</text>`:"";
+    const val=R===7?`<text class="val" x="${xx+w/2}" y="${H-pb-h-5}" text-anchor="middle">${short(x.v)}</text>`:"";
+    return `<rect data-bar="${i}" x="${xx}" y="${H-pb-h}" width="${w}" height="${Math.max(h,1)}" rx="3" fill="var(${x.k===0?"--bar-today":"--bar"})"/>${val}${lab}<rect class="hit" data-ci="${i}" x="${pl+i*bw}" y="0" width="${bw}" height="${H}"><title>${dayLabel(x.d)}: ${fmtV(x.v)}</title></rect>`}).join("");
+  const last=chartDays[chartDays.length-1];
+  return `<section class="panel"><div class="ph"><h2>Продажи по дням</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="seg" role="group" aria-label="Показатель"><button type="button" data-metric="sum" aria-pressed="${prefs.metric==="sum"}">Сумма</button><button type="button" data-metric="cnt" aria-pressed="${prefs.metric==="cnt"}">Штуки</button></div>
+      <div class="seg" role="group" aria-label="Период">${[7,14,30].map(r=>`<button type="button" data-range="${r}" aria-pressed="${R===r}">${r} дн</button>`).join("")}</div>
+    </div></div>
+    <div class="readout" id="readout">${dayLabel(last.d)}: <b>${fmtV(last.v)}</b> · нажмите на столбик</div>
+    <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Продажи по дням">${g}${bars}</svg></div></section>`;
+}
+function blockAttention(){
+  const items=M.map(m=>({m,s:status(m)})).filter(x=>x.s.cls);
+  return `<section class="panel"><div class="ph"><h2>Требуют внимания</h2><small>нет связи или долго нет продаж днём</small></div>
+    <div class="att">${items.length?items.map(x=>`<button type="button" class="${x.s.cls}" data-sel="${x.m.id}"><b>${esc(x.m.name)}</b>${esc(x.s.text)}</button>`).join(""):`<span class="none">Все автоматы работают и продают.</span>`}</div></section>`;
+}
+/* groups live only on this device (localStorage), editable in the app */
+function autoGroups(){const by={};M.forEach(m=>{const w=((m.loc||m.name).trim().split(/[\s,]+/)[0]||"Другие");(by[w]||(by[w]=[])).push(m.id)});
+  return Object.entries(by).map(([name,ids],i)=>({id:"g"+i+"_"+Date.now().toString(36),name,ids}))}
+function rawGroups(){let g=LS.get("groups");if(!Array.isArray(g)){g=autoGroups();LS.set("groups",g)}return g}
+function groups(){const g=rawGroups().map(x=>({...x,ids:x.ids.filter(id=>M.some(m=>m.id===id))})).filter(x=>x.ids.length);
+  const used=new Set(g.flatMap(x=>x.ids)),rest=M.filter(m=>!used.has(m.id)).map(m=>m.id);
+  if(rest.length&&g.length)g.push({id:"_none",name:"Без группы",ids:rest});return g}
+function openGroups(){
+  const draw=()=>{const gs=rawGroups();
+    return `<h3>Группы автоматов</h3><p>Выберите для каждого автомата группу. Группы хранятся только на этом устройстве.</p>
+    <ul class="glist">${gs.map(g=>`<li><input id="gn-${g.id}" data-gname="${g.id}" value="${esc(g.name)}" aria-label="Название группы"><button type="button" class="btn ghost" data-gdel="${g.id}" aria-label="Удалить группу ${esc(g.name)}">Удалить</button></li>`).join("")}</ul>
+    <button type="button" class="btn" id="gadd">+ Новая группа</button>
+    <div class="gm">${M.map(m=>{const cur=gs.find(g=>g.ids.includes(m.id));return `<label for="gs-${m.id}"><span><b>${esc(m.name)}</b><small>${esc(m.loc)}</small></span>
+      <select id="gs-${m.id}" data-gm="${m.id}"><option value="">Без группы</option>${gs.map(g=>`<option value="${g.id}" ${cur&&cur.id===g.id?"selected":""}>${esc(g.name)}</option>`).join("")}</select></label>`}).join("")}</div>
+    <div class="row-btns"><button type="button" class="btn ghost" id="greset">Сбросить по местам установки</button><button type="button" class="btn primary" id="gdone">Готово</button></div>`};
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:90vh;overflow:auto">${draw()}</div></div>`;
+  const sheet=$("sheetRoot").querySelector(".sheet");
+  const save=g=>{LS.set("groups",g);if(!groups().some(x=>x.id===prefs.group)){prefs.group="all";savePrefs()}};
+  const close=()=>{$("sheetRoot").innerHTML="";render()};
+  $("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
+  sheet.addEventListener("click",e=>{
+    if(e.target.id==="gdone")return close();
+    if(e.target.id==="gadd"){const g=rawGroups();g.push({id:"g"+Date.now().toString(36),name:"Новая группа",ids:[]});save(g);sheet.innerHTML=draw();sheet.querySelector(".glist li:last-child input").select();return}
+    if(e.target.id==="greset"){LS.del("groups");rawGroups();prefs.group="all";savePrefs();sheet.innerHTML=draw();return}
+    const d=e.target.dataset.gdel;if(d){save(rawGroups().filter(g=>g.id!==d));sheet.innerHTML=draw()}
+  });
+  sheet.addEventListener("change",e=>{
+    const gid=e.target.dataset.gname;if(gid){const g=rawGroups();const x=g.find(y=>y.id===gid);if(x){x.name=e.target.value.trim()||x.name;save(g)}return}
+    const mid=e.target.dataset.gm;if(mid){const g=rawGroups().map(x=>({...x,ids:x.ids.filter(i=>i!==mid)}));const t=g.find(x=>x.id===e.target.value);if(t)t.ids.push(mid);save(g);sheet.innerHTML=draw()}
+  });
+}
+const gMachines=()=>{const g=groups().find(g=>g.id===prefs.group);return !g?M:M.filter(m=>g.ids.includes(m.id))};
+const gName=()=>{const g=groups().find(g=>g.id===prefs.group);return g?g.name:"Все автоматы"};
+const groupSales=k=>gMachines().flatMap(m=>sales(m,k));
+function chipsHtml(){
+  return `<div class="gchips" role="group" aria-label="Группы">${[{id:"all",name:"Все"},...groups()].map(g=>{
+    const n=g.id==="all"?M.length:g.ids.length;
+    return `<button type="button" data-group="${g.id}" aria-pressed="${prefs.group===g.id}">${esc(g.name)} <span>${n}</span></button>`}).join("")}</div>`;
+}
+function blockMachines(){
+  const ms=gMachines();
+  const rows=ms.map(m=>({m,t:sales(m,0),s:status(m),d:delta(sum(sales(m,0)),sum(weekAgo(sales(m,7),0)))})).sort((a,b)=>sum(b.t)-sum(a.t));
+  const all=groupSales(0), dAll=delta(sum(all),sum(weekAgo(groupSales(7),0)));
+  const list=`<li><button type="button" class="mrow" data-sel="all" aria-pressed="${prefs.sel==="all"}"><span class="st all"></span><span class="t"><span class="n">${prefs.group==="all"?"Все автоматы":"Вся группа"}</span><span class="loc">${ms.length} шт.</span></span><span class="r"><span class="num">${rub(sum(all))}</span><small>${live(all).length} шт ${dHtml(dAll)}</small></span></button></li>`+
+    rows.map(({m,t,s,d})=>`<li><button type="button" class="mrow" data-sel="${m.id}" aria-pressed="${prefs.sel===m.id}">
+      <span class="st ${s.cls}"></span>
+      <span class="t"><span class="n">${esc(m.name)}<span class="type">${m.type==="snack"?"снек":"кофе"}</span></span><span class="loc">${esc(m.loc)} · ${m.id}</span></span>
+      <span class="r"><span class="num">${rub(sum(t))} <small>${dHtml(d)}</small></span><small class="${s.cls}">${live(t).length} шт · ${esc(s.text)}</small></span></button></li>`).join("");
+  return `<section class="panel"><div class="split">
+    <div class="left"><div class="ph"><h2>Автоматы</h2><small>сегодня · ▲▼ к тому же времени неделю назад</small></div>${chipsHtml()}<ul class="mlist">${list}</ul></div>
+    <div class="day" id="day">${dayPanel()}</div></div></section>`;
+}
+let pickerOpen=false;
+function pickerHtml(){
+  const ms=gMachines(), isAll=prefs.sel==="all", m=M.find(x=>x.id===prefs.sel);
+  const curName=isAll?(prefs.group==="all"?"Все автоматы":"Вся группа · "+gName()):m.name;
+  const curSum=isAll?sum(groupSales(0)):sum(sales(m,0));
+  const curSt=isAll?"all":status(m).cls;
+  const rows=[{id:"all",name:prefs.group==="all"?"Все автоматы":"Вся группа",v:sum(groupSales(0)),cls:"all"},
+    ...ms.map(x=>({id:x.id,name:x.name,v:sum(sales(x,0)),cls:status(x).cls})).sort((a,b)=>b.v-a.v)];
+  return `<div class="picker">
+    <button type="button" class="ptrig" id="ptrig" aria-expanded="${pickerOpen}"><span class="st ${curSt}"></span><span class="pn">${esc(curName)}</span><span class="num">${rub(curSum)}</span><span class="chev" aria-hidden="true">${pickerOpen?"▴":"▾"}</span></button>
+    ${pickerOpen?`<div class="pdrop">${chipsHtml()}<ul class="plist2">${rows.map(r=>`<li><button type="button" data-sel="${r.id}" data-close-picker aria-pressed="${prefs.sel===r.id}"><span class="st ${r.cls}"></span><span class="pn">${esc(r.name)}</span><span class="num">${rub(r.v)}</span></button></li>`).join("")}</ul></div>`:""}
+  </div>`;
+}
+function dayPanel(){
+  const k=prefs.dayK, isAll=prefs.sel==="all", m=M.find(x=>x.id===prefs.sel);
+  const list=isAll?groupSales(k).sort((a,b)=>a.t-b.t):sales(m,k);
+  const d=dayDate(k);
+  const label=k===0?"Сегодня":k===1?"Вчера":d.toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"short"});
+  const total=sum(list), prevList=isAll?groupSales(k+7):sales(m,k+7), prevSum=sum(weekAgo(prevList,k)), dw=delta(total,prevSum);
+  const nLive=live(list).length;
+  const hours=Array.from({length:24},()=>({v:0,n:0}));live(list).forEach(s=>{const h=hours[s.t.getHours()];h.v+=s.price;h.n++});
+  const hm=Math.max(...hours.map(h=>h.v))||1;
+  const hb=hours.map((h,i)=>`<button type="button" data-hour="${i}" data-hv="${h.v}" data-hn="${h.n}" aria-label="${i}:00 — ${rub(h.v)}"><span style="height:${h.v?Math.max(h.v/hm*100,4):0}%"></span></button>`).join("");
+  const summaryHtml=`<div class="kpis">
+      <div class="kpi"><div class="l">Сумма</div><div class="v">${rub(total)}</div></div>
+      <div class="kpi"><div class="l">Продаж</div><div class="v">${nLive}</div></div>
+      <div class="kpi"><div class="l">Средний чек</div><div class="v">${nLive?Math.round(total/nLive):0} ₽</div></div>
+      <div class="kpi"><div class="l">${k===0?"К этому времени нед. назад":"К тому же дню нед. назад"}</div><div class="v">${dw===null?"—":dHtml(dw)}</div><div class="l" style="font-weight:500">было ${rub(prevSum)}</div></div>
+    </div>
+    <div class="hours"><div class="hread" id="hread">По часам · нажмите на столбик</div><div class="hbars">${hb}</div><div class="hlab"><span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div></div>`;
+  let body;
+  if(prefs.view==="summary")body=summaryHtml;
+  else if(!list.length)body=`<div class="empty">Продаж за этот день нет</div>`;
+  else if(prefs.view==="tx"){
+    const tx=list.filter(s=>!s.cash).slice().reverse();
+    body=`<p class="txnote">Безналичные оплаты. Кнопка возврата появится, когда подключим Вендисту.</p>
+    <div class="tblwrap"><table><thead><tr><th>Время</th><th>Товар · карта</th><th class="r">Сумма</th></tr></thead><tbody>${tx.map(s=>{const rf=refunds.has(s.id);
+      return `<tr class="${rf?"refunded":""}"><td class="num">${s.t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</td><td><span class="nm">${esc(s.name)}</span><div class="card">кнопка ${esc(s.layout)}${isAll?" · "+esc(s.m.name):""}</div></td><td class="r">${s.price} ₽</td></tr>`}).join("")}</tbody></table></div>`;
+  }
+  else if(prefs.view==="products"){
+    const g={};live(list).forEach(s=>{const key=s.name;(g[key]||(g[key]={name:s.name,n:0,v:0})).n++;g[key].v+=s.price});
+    const arr=Object.values(g).sort((a,b)=>b.v-a.v), top=arr[0].v;
+    body=`<div class="tblwrap"><table><thead><tr><th>Товар</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead><tbody>${arr.map(x=>`<tr><td>${esc(x.name)}<div class="share" style="width:${x.v/top*100}%"></div></td><td class="r">${x.n}</td><td class="r">${rub(x.v)}</td></tr>`).join("")}</tbody></table></div>`;
+  } else {
+    body=`<div class="tblwrap"><table><thead><tr><th>Время</th><th>Товар</th><th class="r">Цена</th></tr></thead><tbody>${list.slice().reverse().map(s=>`<tr class="${refunds.has(s.id)?"refunded":""}"><td class="num">${s.t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</td><td><span class="nm">${esc(s.name)}</span>${refunds.has(s.id)?' <span class="tag">возврат</span>':""}${isAll?`<div style="font-size:12px;color:var(--muted)">${esc(s.m.name)}</div>`:""}</td><td class="r">${s.price} ₽ <span class="pay ${s.cash?"cash":""}">${s.cash?"нал":"карта"}</span></td></tr>`).join("")}</tbody></table></div>`;
+  }
+  return `<div class="mpick" id="mpick">${pickerHtml()}</div><div class="dayh"><div><h3>${isAll?esc(gName()):esc(m.name)}</h3><p>${isAll?(prefs.group==="all"?"суммарно по сети":"суммарно по группе"):esc(m.model+" · "+m.loc+" · "+m.id)}</p></div>
+      <div class="nav"><button type="button" data-day="+1" aria-label="Предыдущий день">‹</button><span>${label}</span><button type="button" data-day="-1" aria-label="Следующий день" ${k===0?"disabled":""}>›</button></div></div>
+    <div class="seg tabs" role="tablist" aria-label="Вид">${[["summary","Сводка"],["feed","Лента"],["products","По товарам"],["tx","Транзакции"]].map(([v,l])=>`<button type="button" role="tab" data-view="${v}" aria-pressed="${prefs.view===v}" aria-selected="${prefs.view===v}">${l}</button>`).join("")}</div>
+    ${body}`;
+}
+const RENDER={summary:blockSummary,chart:blockChart,attention:blockAttention,machines:blockMachines};
+function render(){
+  $("blocks").innerHTML=prefs.order.filter(b=>!prefs.hidden.includes(b)).map(b=>RENDER[b]()).join("")||
+    `<section class="panel"><div class="ph"><h2>Экран пуст</h2></div><p style="padding:0 16px 16px;color:var(--muted)">Включите нужные блоки в «Настроить экран».</p></section>`;
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button"); if(!t)return;
+  if(t.dataset.metric){prefs.metric=t.dataset.metric;savePrefs();render();return}
+  if(t.dataset.range){prefs.range=+t.dataset.range;savePrefs();render();return}
+  if(t.dataset.view){prefs.view=t.dataset.view;savePrefs();$("day").innerHTML=dayPanel();return}
+  if(t.dataset.day){prefs.dayK=Math.max(0,Math.min(29,prefs.dayK+ +t.dataset.day));savePrefs();$("day").innerHTML=dayPanel();return}
+  if(t.dataset.sel){prefs.sel=t.dataset.sel;pickerOpen=false;prefs.view="summary";
+    if(t.dataset.sel!=="all"&&!gMachines().some(m=>m.id===t.dataset.sel))prefs.group="all";
+    savePrefs();
+    if(prefs.hidden.includes("machines")){prefs.hidden=prefs.hidden.filter(x=>x!=="machines")}
+    render();
+    if(window.innerWidth<900||t.closest(".att"))$("day")?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+    return}
+  if(t.id==="cfg"){openCfg();return}
+  if(t.dataset.hour!==undefined){document.querySelectorAll("[data-hour]").forEach(b=>b.setAttribute("aria-pressed",b===t));
+    const h=+t.dataset.hour;$("hread").innerHTML=`${h}:00–${h+1}:00 · <b>${rub(+t.dataset.hv)}</b> · ${t.dataset.hn} шт.`;return}
+});
+document.addEventListener("click",e=>{
+  const hit=e.target.closest("[data-ci]"); if(!hit)return;
+  const i=+hit.dataset.ci, x=chartDays[i];
+  document.querySelectorAll("[data-bar]").forEach(r=>r.classList.toggle("sel",+r.dataset.bar===i));
+  $("readout").innerHTML=`${dayLabel(x.d)}: <b>${fmtV(x.v)}</b>`;
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-refund]"); if(!b)return;
+  const id=b.dataset.refund, sx=allSalesAny(id); if(!sx)return;
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true">
+    <h3>Вернуть ${sx.price} ₽?</h3>
+    <p>${esc(sx.name)} · ${sx.t.toLocaleString("ru-RU",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})} · карта •• ${sx.card}<br>${esc(sx.m.name)}, ${esc(sx.m.loc)}</p>
+    <p>Деньги вернутся на карту покупателя. Отменить возврат будет нельзя.</p>
+    <div class="row-btns"><button type="button" class="btn" id="rfNo">Не возвращать</button><button type="button" class="btn primary" id="rfYes" style="background:var(--bad);border-color:var(--bad);color:#fff">Вернуть ${sx.price} ₽</button></div></div></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};
+  $("scrim").addEventListener("click",ev=>{if(ev.target.id==="scrim")close()});
+  $("rfNo").onclick=close;
+  $("rfYes").onclick=()=>{refunds.add(id);saveRefunds();close();render();toast(`Возврат ${sx.price} ₽ оформлен (в прототипе, в Вендисту ничего не ушло)`)};
+  $("rfNo").focus();
+});
+function allSalesAny(id){const [mid,k]=id.split("#")[0].split("|");const m=M.find(x=>x.id===mid);return sales(m,+k).find(s=>s.id===id)}
+let tt;function toast(msg){clearTimeout(tt);let t=document.querySelector(".toast");if(!t){t=document.createElement("div");t.className="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.textContent=msg;tt=setTimeout(()=>t.remove(),3500)}
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-group]");
+  if(g){prefs.group=g.dataset.group;prefs.sel="all";prefs.view="summary";savePrefs();
+    if(e.target.closest(".pdrop")){pickerOpen=true;render();}
+    else render();
+    return}
+  if(e.target.closest("#ptrig")){pickerOpen=!pickerOpen;$("mpick").innerHTML=pickerHtml();return}
+});
+let lastW=document.documentElement.clientWidth,rt;
+window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{const w=document.documentElement.clientWidth;if(Math.abs(w-lastW)>40){lastW=w;render()}},200)});
+
+function openCfg(){
+  const draw=()=>`<h3>Настроить экран</h3><p>Перетащите блок за ⠿, чтобы поменять порядок. Переключатель скрывает или показывает блок.</p>
+    <ul class="blist" id="blist">${prefs.order.map(b=>`<li data-b="${b}" class="${prefs.hidden.includes(b)?"off":""}">
+      <span class="grip" tabindex="0" role="button" aria-label="Переместить: ${BLOCKS[b]}. Стрелки вверх и вниз">⠿</span>
+      <span class="bn">${BLOCKS[b]}</span>
+      <label class="sw"><input type="checkbox" id="cb-${b}" data-tog="${b}" ${prefs.hidden.includes(b)?"":"checked"} aria-label="Показывать: ${BLOCKS[b]}"><span></span></label></li>`).join("")}</ul>
+    <div class="row-btns"><button type="button" class="btn" id="toGroups">Группы автоматов</button><button type="button" class="btn primary" id="done">Готово</button></div>`;
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true">${draw()}</div></div>`;
+  const sheet=$("sheetRoot").querySelector(".sheet");
+  const close=()=>{$("sheetRoot").innerHTML="";render()};
+  const commit=()=>{prefs.order=[...sheet.querySelectorAll("#blist li")].map(li=>li.dataset.b);savePrefs();render()};
+  $("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
+  sheet.addEventListener("click",e=>{if(e.target.id==="done")close();if(e.target.id==="toGroups")openGroups()});
+  sheet.addEventListener("change",e=>{const b=e.target.dataset.tog;if(!b)return;
+    prefs.hidden=e.target.checked?prefs.hidden.filter(x=>x!==b):[...prefs.hidden,b];
+    e.target.closest("li").classList.toggle("off",!e.target.checked);savePrefs();render()});
+  // drag to reorder
+  let drag=null;
+  sheet.addEventListener("pointerdown",e=>{
+    const g=e.target.closest(".grip"); if(!g)return; e.preventDefault();
+    const li=g.closest("li"), list=li.parentElement, r=li.getBoundingClientRect();
+    drag={li,list,startY:e.clientY,offset:e.clientY-r.top,h:r.height};
+    li.classList.add("dragging"); g.setPointerCapture(e.pointerId);
+  });
+  sheet.addEventListener("pointermove",e=>{
+    if(!drag)return;
+    const {li,list}=drag;
+    const sibs=[...list.children].filter(x=>x!==li);
+    let before=null;
+    for(const x of sibs){const rr=x.getBoundingClientRect();if(e.clientY<rr.top+rr.height/2){before=x;break}}
+    if(before!==li.nextElementSibling) list.insertBefore(li,before);
+    li.style.transform="";
+    const natural=li.getBoundingClientRect().top;
+    li.style.transform=`translateY(${e.clientY-drag.offset-natural}px)`;
+  });
+  const end=()=>{if(!drag)return;drag.li.style.transform="";drag.li.classList.remove("dragging");drag=null;commit()};
+  sheet.addEventListener("pointerup",end);sheet.addEventListener("pointercancel",end);
+  sheet.addEventListener("keydown",e=>{
+    const g=e.target.closest(".grip"); if(!g||(e.key!=="ArrowUp"&&e.key!=="ArrowDown"))return; e.preventDefault();
+    const li=g.closest("li");
+    if(e.key==="ArrowUp"&&li.previousElementSibling)li.parentElement.insertBefore(li,li.previousElementSibling);
+    if(e.key==="ArrowDown"&&li.nextElementSibling)li.parentElement.insertBefore(li.nextElementSibling,li);
+    g.focus();commit();
+  });
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("scrim")){$("sheetRoot").innerHTML="";render()}});
+function showLogin(msg){
+  $("topBtns").hidden=true;
+  const saved=LS.get("client")||auth||{};
+  $("blocks").innerHTML=`<form class="panel login" id="loginForm" autocomplete="on">
+    <h2>Вход в Телеметрон</h2>
+    <p>Данные для входа хранятся только на этом устройстве и отправляются только в Телеметрон. Пароль не сохраняется.</p>
+    <label for="f-cid">client_id<input id="f-cid" name="cid" required autocomplete="off" value="${esc(saved.client_id||"")}"></label>
+    <label for="f-cs">client_secret<input id="f-cs" name="cs" type="password" required autocomplete="off" value="${esc(saved.client_secret||"")}"></label>
+    <label for="f-user">Логин (почта) в Телеметроне<input id="f-user" name="username" type="email" required autocomplete="username"></label>
+    <label for="f-pass">Пароль<input id="f-pass" name="password" type="password" required autocomplete="current-password"></label>
+    ${msg?`<div class="err" role="alert">${esc(msg)}</div>`:""}
+    <button class="btn primary" type="submit" id="f-go">Войти</button>
+  </form>`;
+  $("loginForm").addEventListener("submit",async e=>{e.preventDefault();const f=e.target;$("f-go").disabled=true;$("f-go").textContent="Вхожу…";
+    try{await login($("f-cid").value.trim(),$("f-cs").value.trim(),$("f-user").value.trim(),$("f-pass").value);boot()}
+    catch(err){showLogin(err.message==="Failed to fetch"?"Нет связи с Телеметроном. Проверьте интернет.":err.message)}});
+}
+async function boot(){
+  if(!auth||!auth.refresh_token){showLogin();return}
+  $("blocks").innerHTML=`<div class="panel loading">Загружаю автоматы и продажи за ${DAYS} дней…<div class="bar2"><span id="prog"></span></div></div>`;
+  try{await loadAll((d,n)=>{const p=$("prog");if(p)p.style.width=(d/n*100)+"%"});ready()}
+  catch(e){if(e instanceof NeedLogin)showLogin("Сессия истекла, войдите снова.");else $("blocks").innerHTML=`<div class="panel loading">Не удалось загрузить: ${esc(e.message)}<br><br><button class="btn" type="button" onclick="location.reload()">Попробовать снова</button></div>`}
+}
+function stamp(){$("fresh").textContent="Телеметрон · обновлено в "+loadedAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}
+let timer;
+function ready(){
+  $("topBtns").hidden=false;
+  if(prefs.sel!=="all"&&!M.some(m=>m.id===prefs.sel))prefs.sel="all";
+  stamp();render();
+  clearInterval(timer);timer=setInterval(async()=>{if(document.hidden)return;try{await refreshToday();stamp();render()}catch(e){}},180000);
+}
+$("reload").onclick=async()=>{const b=$("reload");b.disabled=true;b.textContent="Обновляю…";
+  try{await refreshToday();stamp();render()}catch(e){if(e instanceof NeedLogin)showLogin("Сессия истекла, войдите снова.");else toast("Не обновилось: "+e.message)}
+  b.disabled=false;b.textContent="Обновить"};
+$("logout").onclick=async()=>{try{await fetch(API+"/logout",{headers:{Authorization:"Bearer "+auth.access_token}})}catch(e){}
+  auth=null;LS.del("auth");clearInterval(timer);showLogin()};
+document.addEventListener("visibilitychange",async()=>{if(!document.hidden&&loadedAt&&Date.now()-loadedAt>120000){try{await refreshToday();stamp();render()}catch(e){}}});
+boot();
+})();
+</script>
+
+</body></html>
