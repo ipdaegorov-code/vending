@@ -762,11 +762,16 @@ const unitCost=i=>i&&i.pack_size?(+i.pack_price||0)/(+i.pack_size):0;   // ₽ �
 const recipeCost=p=>(p.components||[]).reduce((a,c)=>a+unitCost(prodById(c.iid))*(+c.qty||0),0);
 const costOfProduct=p=>!p?0:kindOf(p)==="recipe"?recipeCost(p):+p.cost||0;
 /* чеки: значения как в 54-ФЗ / ФФД 1.2 */
-const VAT_T={none:"Без НДС (не облагается)","0":"0%","5":"5%","7":"7%","10":"10%","20":"20%","22":"22%","5/105":"5/105","7/107":"7/107","10/110":"10/110","20/120":"20/120","22/122":"22/122"};
+// порядок важен: ключи-числа объект сам ставит вперёд, поэтому храним списком
+const VAT_L=[["none","Без НДС (не облагается)"],["0","0%"],["5","5%"],["7","7%"],["10","10%"],["22","22%"],["5/105","Расчётная 5/105"],["7/107","Расчётная 7/107"],["10/110","Расчётная 10/110"],["22/122","Расчётная 22/122"],["20","20% (старая ставка)"],["20/120","Расчётная 20/120 (старая ставка)"]];
+const VAT_T=Object.fromEntries(VAT_L);
 const SUBJ_T={commodity:"Товар",commodity_marked:"Товар с маркировкой («Честный знак»)",excise:"Подакцизный товар",service:"Услуга"};
 const TAX_T={osn:"ОСН",usn_income:"УСН доход",usn_income_outcome:"УСН доход минус расход",esn:"ЕСХН",patent:"Патент"};
 let FISCAL={vat:"none",subject:"commodity",tax_system:"usn_income_outcome"};
-const optList=(T,cur,inherit)=>(inherit?`<option value="">По умолчанию: ${esc(T[inherit])}</option>`:"")+Object.entries(T).map(([k,v])=>`<option value="${k}" ${cur===k?"selected":""}>${esc(v)}</option>`).join("");
+// список вариантов; у товара первым идёт «как в настройках аккаунта», а своя ставка — отдельной группой без повтора
+function optList(T,cur,inherit){const L=T===VAT_T?VAT_L:Object.entries(T);
+  const opts=L.map(([k,v])=>`<option value="${k}" ${cur===k?"selected":""}>${esc(v)}</option>`).join("");
+  return inherit?`<option value="" ${cur?"":"selected"}>Как в настройках аккаунта (${esc(T[inherit])})</option><optgroup label="Задать для этого товара">${opts}</optgroup>`:opts}
 const money2=v=>v.toLocaleString("ru-RU",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₽";
 const unitMoney=v=>v.toLocaleString("ru-RU",{maximumFractionDigits:v<1?3:2})+" ₽";
 const shortName=n=>String(n||"").replace(/\s+\d+([,.]\d+)?\s*(л|г|мл)\.?$/i,"").replace(/^(\d+[,.]?\d*\s*(Л|Г|МЛ)\.?\s*)/i,"").slice(0,14);
