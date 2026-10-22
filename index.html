@@ -209,7 +209,7 @@ tr.refunded .nm{text-decoration:line-through}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow" id="fresh">Телеметрон · живые данные</div>
+      <div class="eyebrow" id="fresh">Телеметрон · только чтение</div>
       <h1>Обзор</h1>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap" id="topBtns" hidden>
@@ -245,12 +245,17 @@ async function refreshToken(){
   try{keep(await tokenReq({grant_type:"refresh_token",refresh_token:auth.refresh_token,client_id:auth.client_id,client_secret:auth.client_secret}))}
   catch(e){throw new NeedLogin()}
 }
-async function api(path,params){
+/* Защита от случайных изменений: приложение может только ЧИТАТЬ данные.
+   Любой запрос, кроме чтения (GET), блокируется здесь, если явно не включён режим изменений. */
+const WRITE_ENABLED=false;
+async function api(path,params,method="GET"){
+  if(method!=="GET"&&!WRITE_ENABLED)throw new Error("Приложение работает только на чтение: изменения в Телеметроне отключены");
   if(!auth)throw new NeedLogin();
   if(Date.now()>auth.exp)await refreshToken();
   const url=API+"/v2"+path+(params?"?"+new URLSearchParams(params):"");
-  let r=await fetch(url,{headers:{Authorization:"Bearer "+auth.access_token}});
-  if(r.status===401){await refreshToken();r=await fetch(url,{headers:{Authorization:"Bearer "+auth.access_token}})}
+  const go=()=>fetch(url,{method:"GET",headers:{Authorization:"Bearer "+auth.access_token}});
+  let r=await go();
+  if(r.status===401){await refreshToken();r=await go()}
   if(r.status===401)throw new NeedLogin();
   if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error((j.message||"Ошибка сервера")+" ("+r.status+")")}
   return r.json();
@@ -609,7 +614,7 @@ async function boot(){
   try{await loadAll((d,n)=>{const p=$("prog");if(p)p.style.width=(d/n*100)+"%"});ready()}
   catch(e){if(e instanceof NeedLogin)showLogin("Сессия истекла, войдите снова.");else $("blocks").innerHTML=`<div class="panel loading">Не удалось загрузить: ${esc(e.message)}<br><br><button class="btn" type="button" onclick="location.reload()">Попробовать снова</button></div>`}
 }
-function stamp(){$("fresh").textContent="Телеметрон · обновлено в "+loadedAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}
+function stamp(){$("fresh").textContent="Только чтение · обновлено в "+loadedAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}
 let timer;
 function ready(){
   $("topBtns").hidden=false;
