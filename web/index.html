@@ -215,7 +215,7 @@ tr.refunded .nm{text-decoration:line-through}
 .botnav button{flex-direction:column;gap:2px;font-size:10.5px;padding:6px 2px}
 .botnav button[aria-current="page"]{color:var(--accent)}
 @media (min-width:900px){.topnav{display:flex}.botnav{display:none!important}}
-@media (max-width:899px){body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}#cfg{display:none}}
+@media (max-width:899px){body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
 .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
 @media (min-width:900px){.toast{bottom:calc(20px + env(safe-area-inset-bottom,0px))!important}}
 /* ---------- списки автоматов ---------- */
@@ -459,9 +459,12 @@ function status(m){
 }
 
 /* ---------- prefs ---------- */
-const BLOCKS={summary:"Итоги дня и недели",chart:"График продаж",attention:"Требуют внимания",machines:"Автоматы и продажи за день"};
+const BLOCKS={summary:"Итоги дня и недели",chart:"График продаж",attention:"Требуют внимания",list:"Список автоматов",machines:"Автоматы и продажи за день"};
 let prefs={order:["summary","chart","attention","machines"],hidden:[],range:7,metric:"sum",view:"summary",sel:"all",group:"all",dayK:0};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem("dash-prefs-v2")||"{}"))}catch(e){}
+// новые блоки добавляются к сохранённой настройке экрана
+Object.keys(BLOCKS).forEach(b=>{if(!prefs.order.includes(b)){const i=prefs.order.indexOf("attention");prefs.order.splice(i<0?prefs.order.length:i+1,0,b)}});
+prefs.order=prefs.order.filter(b=>BLOCKS[b]);
 function savePrefs(){try{localStorage.setItem("dash-prefs-v2",JSON.stringify(prefs))}catch(e){}}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -629,7 +632,7 @@ function dayPanel(){
     <div class="seg tabs" role="tablist" aria-label="Вид">${[["summary","Сводка"],["feed","Лента"],["products","По товарам"],["tx","Транзакции"]].map(([v,l])=>`<button type="button" role="tab" data-view="${v}" aria-pressed="${prefs.view===v}" aria-selected="${prefs.view===v}">${l}</button>`).join("")}</div>
     ${body}`;
 }
-const RENDER={summary:blockSummary,chart:blockChart,attention:blockAttention,machines:blockMachines};
+const RENDER={summary:blockSummary,chart:blockChart,attention:blockAttention,list:()=>machinesListHtml(),machines:blockMachines};
 function renderOverview(){
   $("blocks").innerHTML=prefs.order.filter(b=>!prefs.hidden.includes(b)).map(b=>RENDER[b]()).join("")||
     `<section class="panel"><div class="ph"><h2>Экран пуст</h2></div><p style="padding:0 16px 16px;color:var(--muted)">Включите нужные блоки в «Настроить экран».</p></section>`;
@@ -806,8 +809,8 @@ function chrome(title){
 
 /* ---------- раздел «Автоматы» ---------- */
 let mSearch="";
-function pageMachines(){
-  chrome("Автоматы");
+function pageMachines(){chrome("Автоматы");return machinesListHtml()}
+function machinesListHtml(){
   const q=mSearch.trim().toLowerCase();
   const ms=gMachines().filter(m=>!q||(m.name+" "+m.loc+" "+m.model).toLowerCase().includes(q));
   const rows=ms.map(m=>{const t=sales(m,0),s=status(m),st=stockOf(m),d=delta(sum(t),sum(weekAgo(sales(m,7),0)));
