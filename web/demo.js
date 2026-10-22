@@ -133,7 +133,20 @@
   window.DEMO_API = async (path, params, opt = {}) => {
     await new Promise((r) => setTimeout(r, 150)); // как будто сеть
     const now = new Date();
-    if (path === "/me") return { login: "demo", role: "owner", demo: true, test: false, refunds: true };
+    if (path === "/me") { const a = ST.get("account", { name: "Мой вендинг" });
+      return { login: "demo", name: "Демо", role: "owner", role_title: "Владелец", perms: ["*"], account: { id: "1", name: a.name }, demo: true, test: false, refunds: true }; }
+    if (path === "/account") {
+      const a = ST.get("account", { name: "Мой вендинг", vendista: { login: "", password_set: false, token_set: false } });
+      if (opt.method === "PUT") { const b = opt.body, v = a.vendista || {};
+        if (b.name) a.name = b.name;
+        if (b.vendista) { v.login = b.vendista.login ?? v.login; if (b.vendista.password) v.password_set = true; if (b.vendista.token !== undefined) v.token_set = !!b.vendista.token; v.updated = new Date().toISOString(); v.checked = null; }
+        a.vendista = v; ST.set("account", a); }
+      const v = a.vendista || {};
+      return { id: "1", name: a.name, vendista: { ...v, configured: !!(v.token_set || (v.login && v.password_set)) } };
+    }
+    if (path === "/account/vendista/check") return { ok: false, error: "Демо-режим: настоящая Вендиста не подключается. На сервере здесь будет реальная проверка." };
+    if (path === "/users") return { users: [{ login: "demo", name: "Демо", role: "owner", role_title: "Владелец", active: true }],
+      roles: [{ id: "owner", title: "Владелец", perms: ["*"] }], perms: {} };
     if (path === "/machines") return MACHINES.map((m) => {
       const s = salesBetween(day0(now), now), mine = s.filter((x) => x.machine_id === m.id), last = mine[mine.length - 1];
       return { id: m.id, name: m.name, model: m.model, address: "", division: m.division, number: "", terminal_id: m.terminal_id,

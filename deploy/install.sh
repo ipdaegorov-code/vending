@@ -28,7 +28,8 @@ DOMAIN="${IP//./-}.sslip.io"
 ask() { local p="$1" v; read -r -p "$p: " v </dev/tty; printf '%s' "$v"; }
 asks() { local p="$1" v; read -r -s -p "$p (символы не видны): " v </dev/tty; echo >&2; printf '%s' "$v"; }
 
-say "2. Вход в приложение (придумайте логин и пароль для себя)"
+say "2. Аккаунт и вход в приложение"
+ACC=$(ask "Название аккаунта (например, ваша компания)"); [ -n "$ACC" ] || ACC="Основной"
 while :; do APP_LOGIN=$(ask "Логин (латиницей, без пробелов)"); [[ "$APP_LOGIN" =~ ^[A-Za-z0-9._@-]+$ ]] && break; echo "Только латинские буквы, цифры и . _ @ -"; done
 while :; do
   P1=$(asks "Пароль"); P2=$(asks "Пароль ещё раз")
@@ -39,7 +40,7 @@ SALT=$(openssl rand -hex 16)
 HASH=$(docker run --rm -e P="$P1" -e S="$SALT" node:22-alpine node -e 'process.stdout.write(require("crypto").scryptSync(process.env.P,process.env.S,32).toString("hex"))')
 unset P1 P2
 
-say "3. Доступ к Вендисте (логин и пароль от портала Вендисты)"
+say "3. Доступ к Вендисте (логин и пароль от портала Вендисты). Хранится в настройках аккаунта, зашифрованно."
 while :; do
   VL=$(ask "Логин Вендисты"); VP=$(asks "Пароль Вендисты")
   case "$VL$VP" in *"'"*) echo "Логин или пароль с апострофом ' пока не поддерживается, напишите Claude."; continue ;; esac
@@ -52,18 +53,17 @@ say "4. Режим работы"
 echo "Сервер ставится в ТЕСТОВОМ режиме: только чтение данных из Вендисты."
 echo "Возвраты и любые изменения в Вендисте заблокированы, пока вы сами их не включите."
 umask 077
-cat > .env <<EOF
-DOMAIN=$DOMAIN
-APP_USERS='$APP_LOGIN:$SALT:$HASH:owner'
-SESSION_SECRET=$(openssl rand -hex 32)
-VENDISTA_LOGIN='$VL'
-VENDISTA_PASSWORD='$VP'
-WRITE_MODE=off
-ALLOW_REFUNDS=0
-EOF
+# в .env — только настройки сервера; доступ к Вендисте уходит в настройки аккаунта (в базу, зашифрованно)
+SECRET=$(grep -s '^SESSION_SECRET=' .env | cut -d= -f2-); [ -n "$SECRET" ] || SECRET=$(openssl rand -hex 32)
+printf 'DOMAIN=%s\nSESSION_SECRET=%s\nWRITE_MODE=off\nALLOW_REFUNDS=0\n' "$DOMAIN" "$SECRET" > .env
 chmod 600 .env
+# одноразовый файл для первого запуска: сервер перенесёт данные в базу и удалит его
+docker run --rm -e ACC="$ACC" -e L="$APP_LOGIN" -e S="$SALT" -e H="$HASH" -e VL="$VL" -e VP="$VP" node:22-alpine \
+  node -e 'const e=process.env;process.stdout.write(JSON.stringify({account:e.ACC,owner:{login:e.L,salt:e.S,hash:e.H},vendista:{login:e.VL,password:e.VP}}))' > data/bootstrap.json
+chmod 600 data/bootstrap.json
+chown -R 1000:1000 data   # сервер в контейнере работает от пользователя node (uid 1000)
 unset VP
-ok "Настройки сохранены в $DIR/.env (доступны только root)"
+ok "Настройки сохранены. Доступ к Вендисте можно поменять в приложении: Настройки → Аккаунт"
 
 say "5. Запускаю"
 docker compose up -d --build
