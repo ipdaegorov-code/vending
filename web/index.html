@@ -329,6 +329,17 @@ tr.refunded .nm{text-decoration:line-through}
 .rl b{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis}
 .rr b{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rl small,.rr small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rbtn{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:8px}
+.rbtn:focus-visible{outline:2px solid var(--accent)}
+.rl small.wrap{white-space:normal;line-height:1.35}
+.pack{display:grid;grid-template-columns:minmax(0,1fr) auto auto minmax(0,1fr) auto;gap:8px;align-items:center;color:var(--ink);font-weight:600}
+.calc{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}.calc b{color:var(--ink);font-size:17px}
+.rcl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rcl li{display:grid;grid-template-columns:minmax(0,1fr) 70px 26px 70px 28px;gap:6px;align-items:center}
+.rcl .u{color:var(--muted);font-size:13px}.rcl .c{font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.rcl .x{border:0;background:none;color:var(--muted);font-size:20px}
+.rcl .search2{padding:8px}
+@media (max-width:480px){.rcl li{grid-template-columns:minmax(0,1fr) 62px 22px 28px}.rcl .c{display:none}}
 .note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:13.5px}
 .btn.ghost{border-color:transparent;background:transparent}
 .btn:disabled{opacity:.45;cursor:default}
@@ -733,6 +744,12 @@ async function loadDB(){
 }
 const prodById=id=>DB.products.find(p=>p.id===id);
 const prodName=id=>(prodById(id)||{}).name||"—";
+const kindOf=p=>p.kind==="recipe"||p.kind==="ingredient"?p.kind:"item";
+const unitCost=i=>i&&i.pack_size?(+i.pack_price||0)/(+i.pack_size):0;   // ₽ за 1 г / мл / шт
+const recipeCost=p=>(p.components||[]).reduce((a,c)=>a+unitCost(prodById(c.iid))*(+c.qty||0),0);
+const costOfProduct=p=>!p?0:kindOf(p)==="recipe"?recipeCost(p):+p.cost||0;
+const money2=v=>v.toLocaleString("ru-RU",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₽";
+const unitMoney=v=>v.toLocaleString("ru-RU",{maximumFractionDigits:v<1?3:2})+" ₽";
 const shortName=n=>String(n||"").replace(/\s+\d+([,.]\d+)?\s*(л|г|мл)\.?$/i,"").replace(/^(\d+[,.]?\d*\s*(Л|Г|МЛ)\.?\s*)/i,"").slice(0,14);
 const numSort=(a,b)=>(+a)-(+b);
 const shelfOf=b=>Math.floor((+b)/10);
@@ -872,7 +889,7 @@ function pageLoading(){
 
 /* ---------- раздел «Отчёты» ---------- */
 let rp=LS.get("rp")||7;
-function costOf(s){const pl=DB.planograms[s.m.vid];const c=pl&&pl.cells[s.layout];const p=c?prodById(c.pid):DB.products.find(x=>x.name===s.name);return p?+p.cost||0:0}
+function costOf(s){const pl=DB.planograms[s.m.vid];const c=pl&&pl.cells[s.layout];const p=c?prodById(c.pid):DB.products.find(x=>x.name===s.name);return costOfProduct(p)}
 function pageReports(){
   chrome("Отчёты");
   const ks=rp===1?[0]:rp===-1?[1]:Array.from({length:rp},(_,i)=>i);
@@ -910,16 +927,27 @@ function pageSettings(){
   let body="";
   if(sTab==="products"){
     const lastPrice=new Map();Object.values(RAW).forEach(s=>lastPrice.set(s.name,s.price));
-    const kindOf=p=>p.kind==="recipe"?"recipe":"item";
     const q=prodQ.trim().toLowerCase(), ps=DB.products.filter(p=>kindOf(p)===pKind&&(!q||p.name.toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name,"ru"));
-    const nI=DB.products.filter(p=>kindOf(p)==="item").length,nR=DB.products.length-nI;
-    body=`<div class="ph"><h2>${pKind==="item"?"Товары для снековых":"Рецепты для кофейных"}</h2>
-        <div class="seg" role="group" aria-label="Вид"><button type="button" data-pkind="item" aria-pressed="${pKind==="item"}">Товары ${nI}</button><button type="button" data-pkind="recipe" aria-pressed="${pKind==="recipe"}">Рецепты ${nR}</button></div></div>
-      <div style="padding:0 16px 10px;display:flex;gap:8px"><input class="search2" id="prodQ" type="search" placeholder="${pKind==="item"?"Поиск товара":"Поиск рецепта"}" value="${esc(prodQ)}" autocomplete="off"><button type="button" class="btn" id="prodAdd">${pKind==="item"?"+ Товар":"+ Рецепт"}</button></div>
-      <div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>${pKind==="item"?"Товар":"Рецепт"}</th><th class="r">Цена в автомате</th><th class="r">Себестоимость</th></tr></thead><tbody>
+    const n=k=>DB.products.filter(p=>kindOf(p)===k).length;
+    const T={item:["Товары для снековых","Поиск товара","+ Товар"],ingredient:["Ингредиенты для кофе","Поиск ингредиента","+ Ингредиент"],recipe:["Рецепты для кофейных","Поиск рецепта","+ Рецепт"]}[pKind];
+    let list;
+    if(pKind==="item")list=`<div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Цена</th><th class="r">Себестоимость</th></tr></thead><tbody>
       ${ps.map(p=>{const pr=lastPrice.get(p.name);return `<tr><td>${esc(p.name)}</td><td class="r">${pr!=null?pr+" ₽":"—"}</td>
         <td class="r"><input class="costin" type="number" inputmode="decimal" min="0" step="0.01" id="cost-${p.id}" data-cost="${p.id}" value="${p.cost??""}" aria-label="Себестоимость ${esc(p.name)}"> ₽</td></tr>`}).join("")}</tbody></table></div>
       <p class="txnote" style="padding:0 16px 14px">Цена берётся из продаж — её задаёт автомат. Себестоимость нужна для прибыли в отчётах.</p>`;
+    else if(pKind==="ingredient")list=`<ul class="rlist">${ps.map(i=>{const used=DB.products.filter(r=>kindOf(r)==="recipe"&&(r.components||[]).some(c=>c.iid===i.id)).length;
+      return `<li><button type="button" class="rbtn" data-editing="${i.id}"><span class="rl"><b>${esc(i.name)}</b><small>${i.pack_size?`${i.pack_size} ${i.unit} за ${rub(+i.pack_price||0)}`:"цена не указана"} · в ${used} рецептах</small></span>
+        <span class="rr"><b>${unitMoney(unitCost(i))}</b><small>за 1 ${esc(i.unit||"шт")}</small></span></button></li>`}).join("")||`<li class="empty">Нет ингредиентов</li>`}</ul>
+      <p class="txnote" style="padding:0 16px 14px">Укажите, как вы покупаете: например, «1000 г за 1500 ₽». Цена за грамм посчитается сама и пойдёт во все рецепты.</p>`;
+    else list=`<ul class="rlist">${ps.map(r=>{const c=recipeCost(r),pr=lastPrice.get(r.name);
+      const comp=(r.components||[]).map(x=>{const i=prodById(x.iid);return i?`${shortName(i.name).toLowerCase()} ${x.qty} ${i.unit}`:""}).filter(Boolean).join(" · ");
+      return `<li><button type="button" class="rbtn" data-editrec="${r.id}"><span class="rl"><b>${esc(r.name)}</b><small class="wrap">${esc(comp)||"состав не указан"}</small></span>
+        <span class="rr"><b>${money2(c)}</b><small>${pr!=null?`цена ${pr} ₽ · наценка ${c?Math.round((pr-c)/c*100)+"%":"—"}`:"себестоимость"}</small></span></button></li>`}).join("")||`<li class="empty">Нет рецептов</li>`}</ul>
+      <p class="txnote" style="padding:0 16px 14px">Себестоимость рецепта = сумма ингредиентов. Меняете цену кофе в «Ингредиентах», и пересчитываются все рецепты.</p>`;
+    body=`<div class="ph"><h2>${T[0]}</h2></div>
+      <div style="padding:0 16px 10px"><div class="seg tabs" role="group" aria-label="Вид"><button type="button" data-pkind="item" aria-pressed="${pKind==="item"}">Товары ${n("item")}</button><button type="button" data-pkind="ingredient" aria-pressed="${pKind==="ingredient"}">Ингредиенты ${n("ingredient")}</button><button type="button" data-pkind="recipe" aria-pressed="${pKind==="recipe"}">Рецепты ${n("recipe")}</button></div></div>
+      <div style="padding:0 16px 10px;display:flex;gap:8px"><input class="search2" id="prodQ" type="search" placeholder="${T[1]}" value="${esc(prodQ)}" autocomplete="off"><button type="button" class="btn" id="prodAdd" style="white-space:nowrap">${T[2]}</button></div>
+      ${list}`;
   } else if(sTab==="plans"){
     const card=m=>{const pl=DB.planograms[m.vid],n=Object.keys(pl.cells).length,pr=new Set(Object.values(pl.cells).map(c=>c.pid).filter(Boolean)).size;
       return `<li><button type="button" class="mcard plain" data-open="${m.id}" data-tab="plan"><span class="t"><span class="n">${esc(m.name)}</span><span class="loc">${esc(m.loc)} · ${n} ${pl.kind==="coffee"?"кнопок":"ячеек"} · ${pr} ${pl.kind==="coffee"?"напитков":"товаров"}</span></span><span class="r"><small>${pl.kind==="coffee"?"Открыть":"Изменить"} ›</small></span></button></li>`};
@@ -937,6 +965,59 @@ function pageSettings(){
   return `<div class="seg tabs" role="tablist">${tabs.map(([v,l])=>`<button type="button" role="tab" data-stab="${v}" aria-pressed="${sTab===v}" aria-selected="${sTab===v}">${l}</button>`).join("")}</div><section class="panel">${body}</section>`;
 }
 async function saveProducts(){try{await api("/products",null,{method:"PUT",body:DB.products});toast("Сохранено")}catch(e){toast("Не сохранилось: "+e.message)}}
+function sheet(html,onMount){$("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:90vh;overflow:auto">${html}</div></div>`;
+  const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});onMount($("sheetRoot").querySelector(".sheet"),close)}
+const newId=()=>Math.max(0,...DB.products.map(p=>p.id))+1;
+function openIngredient(id){
+  const i=id?{...prodById(id)}:{name:"",kind:"ingredient",unit:"г",pack_size:1000,pack_price:""};
+  const used=id?DB.products.filter(r=>kindOf(r)==="recipe"&&(r.components||[]).some(c=>c.iid===id)):[];
+  sheet(`<h3>${id?"Ингредиент":"Новый ингредиент"}</h3>
+    <label class="fl" for="ig-name">Название<input class="search2" id="ig-name" value="${esc(i.name)}" placeholder="Например, Кофе зерно"></label>
+    <label class="fl" for="ig-unit">Считаем в<select class="search2" id="ig-unit">${["г","мл","шт"].map(u=>`<option ${i.unit===u?"selected":""}>${u}</option>`).join("")}</select></label>
+    <div class="fl">Как покупаете<div class="pack"><input class="search2" id="ig-size" type="number" inputmode="decimal" min="0" value="${i.pack_size??""}" aria-label="Размер упаковки"><span id="ig-u">${esc(i.unit)}</span><span>за</span><input class="search2" id="ig-price" type="number" inputmode="decimal" min="0" step="0.01" value="${i.pack_price??""}" aria-label="Цена упаковки"><span>₽</span></div></div>
+    <div class="calc" id="ig-calc"></div>
+    ${used.length?`<p>Используется в: ${used.map(r=>esc(r.name)).join(", ")}</p>`:""}
+    <div class="row-btns">${id&&!used.length?`<button type="button" class="btn ghost" id="ig-del">Удалить</button>`:""}<button type="button" class="btn" id="ig-no">Отмена</button><button type="button" class="btn primary" id="ig-ok">Сохранить</button></div>`,
+  (el,close)=>{const calc=()=>{const u=$("ig-unit").value;$("ig-u").textContent=u;const v=(+$("ig-price").value||0)/(+$("ig-size").value||0);
+      $("ig-calc").textContent=isFinite(v)&&v?`= ${unitMoney(v)} за 1 ${u}`+(u==="г"?` · ${unitMoney(v*10)} за 10 г`:u==="мл"?` · ${rub(Math.round(v*1000))} за литр`:""):"Укажите размер и цену упаковки"};
+    calc();el.addEventListener("input",calc);el.addEventListener("change",calc);
+    $("ig-no").onclick=close;
+    if($("ig-del"))$("ig-del").onclick=async()=>{DB.products=DB.products.filter(p=>p.id!==id);await saveProducts();close();render()};
+    $("ig-ok").onclick=async()=>{const name=$("ig-name").value.trim();if(!name)return $("ig-name").focus();
+      const o={...i,name,unit:$("ig-unit").value,pack_size:+$("ig-size").value||0,pack_price:+$("ig-price").value||0};
+      if(id)DB.products=DB.products.map(p=>p.id===id?o:p);else DB.products.push({...o,id:newId()});
+      await saveProducts();close();render()};
+    if(!id)$("ig-name").focus()});
+}
+function openRecipe(id){
+  const r=id?JSON.parse(JSON.stringify(prodById(id))):{name:"",kind:"recipe",components:[]};
+  if(!r.components)r.components=[];
+  const ings=DB.products.filter(p=>kindOf(p)==="ingredient").sort((a,b)=>a.name.localeCompare(b.name,"ru"));
+  const rows=()=>r.components.map((c,k)=>{const i=prodById(c.iid);return `<li><select class="search2" data-rc="${k}" aria-label="Ингредиент">${ings.map(x=>`<option value="${x.id}" ${x.id===c.iid?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+      <input class="search2" type="number" inputmode="decimal" min="0" step="0.1" data-rq="${k}" value="${c.qty}" aria-label="Количество"><span class="u">${esc(i?i.unit:"")}</span><span class="c">${money2(unitCost(i)*(+c.qty||0))}</span><button type="button" class="x" data-rx="${k}" aria-label="Убрать">×</button></li>`}).join("");
+  const draw=()=>{$("rc-list").innerHTML=rows();$("rc-total").innerHTML=`Себестоимость: <b>${money2(recipeCost(r))}</b>`};
+  sheet(`<h3>${id?"Рецепт":"Новый рецепт"}</h3>
+    <label class="fl" for="rc-name">Название<input class="search2" id="rc-name" value="${esc(r.name)}" placeholder="Например, Капучино"></label>
+    <div class="fl">Состав на одну порцию</div><ul class="rcl" id="rc-list"></ul>
+    <button type="button" class="btn" id="rc-add" ${ings.length?"":"disabled"}>+ Ингредиент</button>
+    <div class="calc" id="rc-total"></div>
+    <div class="row-btns">${id?`<button type="button" class="btn ghost" id="rc-del">Удалить</button>`:""}<button type="button" class="btn" id="rc-no">Отмена</button><button type="button" class="btn primary" id="rc-ok">Сохранить</button></div>`,
+  (el,close)=>{draw();
+    el.addEventListener("change",e=>{const k=e.target.dataset.rc;if(k!=null){r.components[k].iid=+e.target.value;draw()}});
+    el.addEventListener("input",e=>{const k=e.target.dataset.rq;if(k!=null){r.components[k].qty=+e.target.value||0;
+      const li=e.target.closest("li");li.querySelector(".c").textContent=money2(unitCost(prodById(r.components[k].iid))*r.components[k].qty);$("rc-total").innerHTML=`Себестоимость: <b>${money2(recipeCost(r))}</b>`}});
+    el.addEventListener("click",e=>{const x=e.target.dataset.rx;if(x!=null){r.components.splice(+x,1);draw()}});
+    $("rc-add").onclick=()=>{const used=new Set(r.components.map(c=>c.iid));const f=ings.find(i=>!used.has(i.id))||ings[0];r.components.push({iid:f.id,qty:f.unit==="шт"?1:10});draw()};
+    $("rc-no").onclick=close;
+    if($("rc-del"))$("rc-del").onclick=async()=>{const inUse=Object.values(DB.planograms).some(pl=>Object.values(pl.cells).some(c=>c.pid===id));
+      if(inUse){toast("Рецепт стоит в планограмме кофейного автомата — сначала уберите его оттуда");return}
+      DB.products=DB.products.filter(p=>p.id!==id);await saveProducts();close();render()};
+    $("rc-ok").onclick=async()=>{const name=$("rc-name").value.trim();if(!name)return $("rc-name").focus();
+      const o={...r,name,components:r.components.filter(c=>c.qty>0)};
+      if(id)DB.products=DB.products.map(p=>p.id===id?o:p);else DB.products.push({...o,id:newId()});
+      await saveProducts();close();render()};
+    if(!id)$("rc-name").focus()});
+}
 function openProductAdd(){
   $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><form class="sheet" id="padd"><h3>${pKind==="recipe"?"Новый рецепт":"Новый товар"}</h3><p>${pKind==="recipe"?"Будет доступен только в планограммах кофейных автоматов.":"Будет доступен только в планограммах снековых автоматов."}</p>
     <label class="fl" for="pa-name">Название<input id="pa-name" required class="search2"></label>
@@ -1000,7 +1081,7 @@ function peCap(b){const c=PE.cells[b];let v=c.cap||1;
 }
 function peAddProduct(){const used=new Set(Object.values(PE.cells).map(c=>c.pid));
   const want=PE.kind==="coffee"?"recipe":"item";
-  const draw=q=>DB.products.filter(p=>(p.kind==="recipe"?"recipe":"item")===want&&!used.has(p.id)&&(!q||p.name.toLowerCase().includes(q.toLowerCase()))).map(p=>`<li><button type="button" data-peadd="${p.id}"><span>${esc(p.name)}</span></button></li>`).join("")||`<li class="empty">${q?"Ничего не нашлось.":want==="recipe"?"Все рецепты уже в этом автомате.":"Все товары уже в этом автомате."} Новый можно добавить в Настройки → Каталог → ${want==="recipe"?"Рецепты":"Товары"}.</li>`;
+  const draw=q=>DB.products.filter(p=>kindOf(p)===want&&!used.has(p.id)&&(!q||p.name.toLowerCase().includes(q.toLowerCase()))).map(p=>`<li><button type="button" data-peadd="${p.id}"><span>${esc(p.name)}</span></button></li>`).join("")||`<li class="empty">${q?"Ничего не нашлось.":want==="recipe"?"Все рецепты уже в этом автомате.":"Все товары уже в этом автомате."} Новый можно добавить в Настройки → Каталог → ${want==="recipe"?"Рецепты":"Товары"}.</li>`;
   $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:85vh;overflow:auto"><h3>${PE.kind==="coffee"?"Добавить рецепт":"Добавить товар"}</h3>
     <input class="search2" id="peQ" type="search" placeholder="Поиск" autocomplete="off"><ul class="cat2" id="peCat">${draw("")}</ul></div></div>`;
   const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
@@ -1031,7 +1112,9 @@ document.addEventListener("click",e=>{
   if(t.dataset.pkind){pKind=t.dataset.pkind;LS.set("pKind",pKind);prodQ="";render();return}
   if(t.dataset.rp){rp=+t.dataset.rp;LS.set("rp",rp);render();return}
   if(t.dataset.loadm){openLoading(M.find(x=>x.id===t.dataset.loadm));return}
-  if(t.id==="prodAdd"){openProductAdd();return}
+  if(t.id==="prodAdd"){pKind==="ingredient"?openIngredient(null):pKind==="recipe"?openRecipe(null):openProductAdd();return}
+  if(t.dataset.editing){openIngredient(+t.dataset.editing);return}
+  if(t.dataset.editrec){openRecipe(+t.dataset.editrec);return}
   if(t.id==="setGroups"){openGroups();return}
   if(t.id==="setScreen"){openCfg();return}
   if(t.dataset.pemode){PE.mode=t.dataset.pemode;peRender();return}

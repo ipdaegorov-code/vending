@@ -45,14 +45,29 @@
   /* ----- демо-хранилище (на сервере будет база) ----- */
   const ST = { get(k, d) { try { const v = JSON.parse(localStorage.getItem("demo." + k)); return v == null ? d : v; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem("demo." + k, JSON.stringify(v)); } catch (e) {} } };
+  // ингредиенты кофейных: покупаем упаковкой, себестоимость считается за 1 г / мл / шт
+  const INGR = [["Кофе зерно", "г", 1000, 1500], ["Молоко сухое", "г", 1000, 650], ["Шоколад", "г", 1000, 720], ["Сахар", "г", 1000, 95],
+    ["Чай чёрный листовой", "г", 250, 320], ["Сироп ваниль", "мл", 1000, 640], ["Вода", "мл", 19000, 260],
+    ["Стакан 250 мл", "шт", 1000, 2300], ["Крышка", "шт", 1000, 950], ["Размешиватель", "шт", 1000, 320]];
+  const RECIPES = { "Эспрессо": [["Кофе зерно", 8], ["Вода", 40], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Американо": [["Кофе зерно", 9], ["Вода", 180], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Капучино": [["Кофе зерно", 9], ["Молоко сухое", 12], ["Вода", 170], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Латте": [["Кофе зерно", 9], ["Молоко сухое", 16], ["Вода", 180], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Раф ванильный": [["Кофе зерно", 9], ["Молоко сухое", 18], ["Сироп ваниль", 15], ["Вода", 170], ["Стакан 250 мл", 1], ["Крышка", 1], ["Размешиватель", 1]],
+    "Горячий шоколад": [["Шоколад", 25], ["Молоко сухое", 6], ["Вода", 180], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Чай чёрный": [["Чай чёрный листовой", 2], ["Вода", 200], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Флэт уайт": [["Кофе зерно", 16], ["Молоко сухое", 10], ["Вода", 150], ["Стакан 250 мл", 1], ["Размешиватель", 1]],
+    "Мокачино": [["Кофе зерно", 8], ["Шоколад", 12], ["Молоко сухое", 10], ["Вода", 180], ["Стакан 250 мл", 1], ["Размешиватель", 1]] };
   function defaultProducts() {
-    const seen = new Map();
-    [["coffee", COFFEE], ["tcn", TCN], ["snack", SNACK]].forEach(([kind, list]) => list.forEach(([, name, price]) => {
-      if (!seen.has(name)) seen.set(name, { id: seen.size + 1, name, price, cost: COST(name, price, kind), kind: kind === "coffee" ? "recipe" : "item" });
-    }));
-    return [...seen.values()];
+    const out = [], add = (o) => { o.id = out.length + 1; out.push(o); return o; };
+    const ing = new Map(INGR.map(([name, unit, pack_size, pack_price]) => [name, add({ name, kind: "ingredient", unit, pack_size, pack_price })]));
+    const seen = new Set();
+    [["tcn", TCN], ["snack", SNACK]].forEach(([kind, list]) => list.forEach(([, name, price]) => {
+      if (!seen.has(name)) { seen.add(name); add({ name, kind: "item", cost: COST(name, price, kind) }); } }));
+    COFFEE.forEach(([, name]) => add({ name, kind: "recipe", components: (RECIPES[name] || []).map(([n, qty]) => ({ iid: ing.get(n).id, qty })) }));
+    return out;
   }
-  function products() { return ST.get("products", null) || defaultProducts(); }
+  function products() { return ST.get("products2", null) || defaultProducts(); }
   function defaultPlanogram(m) {
     const byName = new Map(products().map((p) => [p.name, p.id])), cells = {};
     MENU[m.kind].forEach(([btn, name]) => { cells[btn] = { pid: byName.get(name), cap: m.kind === "coffee" ? null : (m.kind === "tcn" ? (TCN_CAP[btn] || 6) : 9) }; });
@@ -122,7 +137,7 @@
       try { localStorage.setItem("demo.refunded", JSON.stringify([...refunded])); } catch (e) {}
       return { ok: true };
     }
-    if (path === "/products") { if (opt.method === "PUT") { ST.set("products", opt.body); return { ok: true }; } return products(); }
+    if (path === "/products") { if (opt.method === "PUT") { ST.set("products2", opt.body); return { ok: true }; } return products(); }
     if (path === "/planograms") return planograms();
     if (path.startsWith("/planograms/") && opt.method === "PUT") { const all = ST.get("planograms", {}); all[path.split("/")[2]] = opt.body; ST.set("planograms", all); return { ok: true }; }
     if (path === "/loadings") {
