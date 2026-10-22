@@ -329,6 +329,7 @@ tr.refunded .nm{text-decoration:line-through}
 .rl b{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis}
 .rr b{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rl small,.rr small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.linkbtn{border:0;background:none;color:var(--accent);font-weight:600;font-size:13.5px;padding:4px 0 0}
 .rbtn{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:8px}
 .rbtn:focus-visible{outline:2px solid var(--accent)}
 .rl small.wrap{white-space:normal;line-height:1.35}
@@ -623,7 +624,7 @@ function dayPanel(){
   } else {
     body=`<div class="tblwrap"><table><thead><tr><th>Время</th><th>Товар</th><th class="r">Цена</th></tr></thead><tbody>${list.slice().reverse().map(s=>`<tr class="${refunds.has(s.id)?"refunded":""}"><td class="num">${s.t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</td><td><span class="nm">${esc(s.name)}</span>${refunds.has(s.id)?' <span class="tag">возврат</span>':""}${isAll?`<div style="font-size:12px;color:var(--muted)">${esc(s.m.name)}</div>`:""}</td><td class="r">${s.price} ₽ <span class="pay ${s.cash?"cash":""}">${s.cash?"нал":"карта"}</span></td></tr>`).join("")}</tbody></table></div>`;
   }
-  return `<div class="mpick" id="mpick">${pickerHtml()}</div><div class="dayh"><div><h3>${isAll?esc(gName()):esc(m.name)}</h3><p>${isAll?(prefs.group==="all"?"суммарно по сети":"суммарно по группе"):esc(m.model+" · "+m.loc+" · "+m.id)}</p></div>
+  return `<div class="mpick" id="mpick">${pickerHtml()}</div><div class="dayh"><div><h3>${isAll?esc(gName()):esc(m.name)}</h3><p>${isAll?(prefs.group==="all"?"суммарно по сети":"суммарно по группе"):esc(m.model+" · "+m.loc)}</p>${isAll?"":`<button type="button" class="linkbtn" data-open="${m.id}" data-tab="stock">Остатки, планограмма, события ›</button>`}</div>
       <div class="nav"><button type="button" data-day="+1" aria-label="Предыдущий день">‹</button><span>${label}</span><button type="button" data-day="-1" aria-label="Следующий день" ${k===0?"disabled":""}>›</button></div></div>
     <div class="seg tabs" role="tablist" aria-label="Вид">${[["summary","Сводка"],["feed","Лента"],["products","По товарам"],["tx","Транзакции"]].map(([v,l])=>`<button type="button" role="tab" data-view="${v}" aria-pressed="${prefs.view===v}" aria-selected="${prefs.view===v}">${l}</button>`).join("")}</div>
     ${body}`;
@@ -753,16 +754,30 @@ const unitMoney=v=>v.toLocaleString("ru-RU",{maximumFractionDigits:v<1?3:2})+" �
 const shortName=n=>String(n||"").replace(/\s+\d+([,.]\d+)?\s*(л|г|мл)\.?$/i,"").replace(/^(\d+[,.]?\d*\s*(Л|Г|МЛ)\.?\s*)/i,"").slice(0,14);
 const numSort=(a,b)=>(+a)-(+b);
 const shelfOf=b=>Math.floor((+b)/10);
-let route=LS.get("route")||"overview";
+let route=LS.get("route")||"overview", backTo=LS.get("backTo")||"overview";
 function go(r){route=r;LS.set("route",r);render();window.scrollTo(0,0)}
 
 /* ---------- остатки: последняя загрузка ячейки минус продажи по её кнопке ---------- */
 let btnIdx=null,btnIdxAt=null;
 function buildBtnIdx(){btnIdx={};Object.values(RAW).forEach(s=>{const k=s.m.id+"|"+s.layout;(btnIdx[k]||(btnIdx[k]=[])).push(s.t)});btnIdxAt=loadedAt}
 function soldSince(m,btn,t0){if(!btnIdx||btnIdxAt!==loadedAt)buildBtnIdx();return (btnIdx[m.id+"|"+btn]||[]).filter(t=>t>t0).length}
+let salesByM=null,salesByMAt=null;
+function salesOfM(m){if(!salesByM||salesByMAt!==loadedAt){salesByM={};Object.values(RAW).forEach(s=>(salesByM[s.m.id]||(salesByM[s.m.id]=[])).push(s));salesByMAt=loadedAt}return salesByM[m.id]||[]}
 function stockOf(m){
-  const pl=DB.planograms[m.vid]; if(!pl||pl.kind==="coffee")return null;
+  const pl=DB.planograms[m.vid]; if(!pl)return null;
   const loads=DB.loadings.filter(l=>l.machine_id===m.vid).sort((a,b)=>new Date(a.time)-new Date(b.time));
+  if(pl.kind==="coffee"){ // остатки ингредиентов: загрузка минус расход по рецептам проданных напитков
+    const hop=pl.hoppers||{}; if(!Object.keys(hop).length)return null;
+    const cells=Object.keys(hop).map(iid=>{const key="i"+iid,ing=prodById(+iid);let base=null,t0=null;
+      loads.forEach(l=>{if(l.cells&&l.cells[key]!=null){base=+l.cells[key];t0=new Date(l.time)}});
+      let used=0;if(t0)salesOfM(m).forEach(s=>{if(s.t<=t0)return;const c=pl.cells[s.layout];const r=c&&prodById(c.pid);
+        (r&&r.components||[]).forEach(x=>{if(x.iid===+iid)used+=+x.qty||0})});
+      return {btn:key,iid:+iid,name:ing?ing.name:"—",unit:ing?ing.unit:"",cap:+hop[iid]||0,level:base==null?null:Math.max(0,Math.round(base-used))}})
+      .sort((a,b)=>a.name.localeCompare(b.name,"ru"));
+    const known=cells.filter(c=>c.level!=null&&c.cap), pcts=known.map(c=>Math.min(100,Math.round(c.level/c.cap*100)));
+    return {coffee:true,cells,pct:pcts.length?Math.min(...pcts):null,empty:known.filter(c=>c.level/c.cap<.1).length,need:null,
+      low:known.filter(c=>c.level/c.cap<.25).map(c=>c.name),last:loads.length?new Date(loads[loads.length-1].time):null};
+  }
   const cells=Object.keys(pl.cells).sort(numSort).map(b=>{const c=pl.cells[b];let base=null,t0=null;
     loads.forEach(l=>{if(l.cells&&l.cells[b]!=null){base=+l.cells[b];t0=new Date(l.time)}});
     const level=base==null?null:Math.max(0,base-soldSince(m,b,t0));
@@ -775,12 +790,13 @@ function stockOf(m){
 const fillCls=p=>p==null?"":p<25?"bad":p<50?"warn":"ok";
 
 /* ---------- навигация ---------- */
-const NAV=[["overview","Обзор","M3 13h7V3H3v10zm0 8h7v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"],
-  ["machines","Автоматы","M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v10h7V5H7zm9 1v2h2V6h-2zm0 4v2h2v-2h-2zM7 18v1h10v-1H7z"],
-  ["loading","Загрузка","M20 8h-3V4H3a2 2 0 0 0-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4zM6 18.5A1.5 1.5 0 1 1 6 15.5a1.5 1.5 0 0 1 0 3zm13.5-9 1.96 2.5H17V9.5h2.5zM18 18.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"],
+const NAV0=[["overview","Обзор","M3 13h7V3H3v10zm0 8h7v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"],
+  ["coffee","Кофе","M4 4h14v2h1.5A2.5 2.5 0 0 1 22 8.5v2a2.5 2.5 0 0 1-2.5 2.5H18a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6V4zm14 4v3h1.5a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5H18zM3 20h16v2H3v-2z"],
+  ["loading","Снеки","M20 8h-3V4H3a2 2 0 0 0-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4zM6 18.5A1.5 1.5 0 1 1 6 15.5a1.5 1.5 0 0 1 0 3zm13.5-9 1.96 2.5H17V9.5h2.5zM18 18.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"],
   ["reports","Отчёты","M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"],
   ["settings","Настройки","M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"]];
-function navHtml(){const base=route.split(":")[0]==="machine"?"machines":route.split(":")[0];
+const NAV=[NAV0[0],NAV0[2],NAV0[1],NAV0[3],NAV0[4]];
+function navHtml(){const base=route.split(":")[0]==="machine"?(backTo||"overview").split(":")[0]:route.split(":")[0];
   return NAV.map(([r,l,d])=>`<button type="button" data-go="${r}" aria-current="${base===r?"page":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></button>`).join("")}
 function chrome(title){
   $("pageTitle").textContent=title;
@@ -819,7 +835,7 @@ function pageMachine(id){
   else if(mTab==="stock")body=stockPanel(m,st);
   else if(mTab==="plan")body=`<div id="pe">${planEditorHtml(m)}</div>`;
   else body=eventsPanel(m);
-  return `<button type="button" class="back" data-go="machines">‹ Все автоматы</button>
+  return `<button type="button" class="back" data-go="${backTo||"overview"}">‹ Назад</button>
   <section class="panel mhead"><div><div class="eyebrow">${esc(m.model)} · ${esc(m.loc)}</div>
     <div class="mstat"><span class="st ${s.cls}"></span>${esc(s.text)}${st?` · заполнено ${st.pct}%`:""}</div></div>
     <div class="mnum"><span class="num">${rub(sum(sales(m,0)))}</span><small>сегодня</small></div></section>
@@ -827,6 +843,14 @@ function pageMachine(id){
   <section class="panel" style="padding-bottom:4px">${body}</section>`;
 }
 function stockPanel(m,st){
+  if(st&&st.coffee)return `<div class="stockhead">
+      <div class="kpi"><div class="l">Меньше всего</div><div class="v">${st.pct}%</div></div>
+      <div class="kpi"><div class="l">Почти закончилось</div><div class="v">${st.low.length}</div></div>
+      <div class="kpi" style="grid-column:span 2"><div class="l">Последняя загрузка</div><div class="v sm">${st.last?st.last.toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—"}</div></div></div>
+    <ul class="rlist">${st.cells.map(c=>{const p=c.cap?Math.min(100,Math.round((c.level||0)/c.cap*100)):0;
+      return `<li><span class="rl" style="flex:1"><b>${esc(c.name)}</b><span class="fbar ${fillCls(p)}" style="margin-top:6px"><i style="width:${p}%"></i></span></span><span class="rr"><b>${c.level==null?"?":c.level.toLocaleString("ru-RU")} ${esc(c.unit)}</b><small>из ${c.cap.toLocaleString("ru-RU")} · ${p}%</small></span></li>`}).join("")}</ul>
+    <p class="txnote" style="padding:0 16px 8px">Расход считается по рецептам проданных напитков.</p>
+    <div class="row-btns" style="padding:4px 16px 14px"><button type="button" class="btn primary" data-loadm="${m.id}">Отметить загрузку</button></div>`;
   if(!st)return `<div class="empty" style="padding:24px">Для кофейных автоматов остатки по ячейкам не ведутся. Позже добавим учёт ингредиентов.</div>`;
   const shelves={};st.cells.forEach(c=>(shelves[shelfOf(c.btn)]||(shelves[shelfOf(c.btn)]=[])).push(c));
   return `<div class="stockhead">
@@ -853,9 +877,9 @@ function eventsPanel(m){
 function openLoading(m){
   const st=stockOf(m); if(!st)return;
   $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:90vh;overflow:auto">
-    <h3>Загрузка: ${esc(m.name)}</h3><p>Укажите, сколько стало в каждой ячейке после загрузки. По умолчанию — полная.</p>
+    <h3>Загрузка: ${esc(m.name)}</h3><p>${st.coffee?"Сколько стало каждого ингредиента после загрузки.":"Сколько стало в каждой ячейке после загрузки."} По умолчанию — полная.</p>
     <div class="row-btns" style="justify-content:flex-start"><button type="button" class="btn" id="ldFull">Всё до полного</button><button type="button" class="btn ghost" id="ldNow">Как сейчас</button></div>
-    <ul class="ldlist">${st.cells.map(c=>`<li><b>${c.btn}</b><span>${esc(c.name)}<small>было ${c.level==null?"?":c.level} из ${c.cap}</small></span>
+    <ul class="ldlist">${st.cells.map(c=>`<li><b>${st.coffee?"":c.btn}</b><span>${esc(c.name)}<small>было ${c.level==null?"?":c.level} из ${c.cap} ${esc(c.unit||"шт")}</small></span>
       <input type="number" inputmode="numeric" min="0" max="${c.cap*2}" id="ld-${c.btn}" data-ld="${c.btn}" value="${c.cap}" data-now="${c.level??0}" data-cap="${c.cap}" aria-label="Ячейка ${c.btn}: стало"></li>`).join("")}</ul>
     <input class="search2" id="ldNote" placeholder="Комментарий (необязательно)">
     <div class="row-btns"><button type="button" class="btn" id="ldNo">Отмена</button><button type="button" class="btn primary" id="ldYes">Сохранить загрузку</button></div></div></div>`;
@@ -865,26 +889,30 @@ function openLoading(m){
   $("ldFull").onclick=()=>document.querySelectorAll("[data-ld]").forEach(i=>i.value=i.dataset.cap);
   $("ldNow").onclick=()=>document.querySelectorAll("[data-ld]").forEach(i=>i.value=i.dataset.now);
   $("ldYes").onclick=async()=>{const cells={};let added=0;document.querySelectorAll("[data-ld]").forEach(i=>{cells[i.dataset.ld]=Math.max(0,+i.value||0);added+=Math.max(0,cells[i.dataset.ld]-(+i.dataset.now))});
-    try{await api("/loadings",null,{method:"POST",body:{machine_id:m.vid,cells,note:$("ldNote").value.trim()||"Загружено "+added+" шт"}});
-      DB.loadings=await api("/loadings");evCache={};close();toast("Загрузка сохранена: +"+added+" шт");render()}
+    try{await api("/loadings",null,{method:"POST",body:{machine_id:m.vid,cells,note:$("ldNote").value.trim()||(st.coffee?"Загрузка ингредиентов":"Загружено "+added+" шт")}});
+      DB.loadings=await api("/loadings");evCache={};close();toast(st.coffee?"Загрузка сохранена":"Загрузка сохранена: +"+added+" шт");render()}
     catch(e){toast("Не сохранилось: "+e.message)}};
 }
 
-/* ---------- раздел «Загрузка» ---------- */
-let ldPick=null;
-function pageLoading(){
-  chrome("Загрузка");
-  const rows=gMachines().map(m=>({m,st:stockOf(m)})).filter(x=>x.st).sort((a,b)=>a.st.pct-b.st.pct);
-  if(!ldPick)ldPick=new Set(rows.filter(x=>x.st.pct<70||x.st.empty).map(x=>x.m.id));
-  const need={};rows.filter(x=>ldPick.has(x.m.id)).forEach(({st})=>st.cells.forEach(c=>{if(c.level==null)return;const n=Math.max(0,c.cap-c.level);if(!n)return;(need[c.name]||(need[c.name]={n:0,cells:0})).n+=n;need[c.name].cells++}));
-  const list=Object.entries(need).sort((a,b)=>b[1].n-a[1].n), total=list.reduce((a,[,v])=>a+v.n,0);
+/* ---------- разделы «Снеки» и «Кофе»: загрузка ---------- */
+let ldPick={snack:null,coffee:null};
+function pageLoading(kind){
+  const coffee=kind==="coffee";
+  chrome(coffee?"Загрузка кофе":"Загрузка снеков");
+  const rows=gMachines().filter(m=>{const pl=DB.planograms[m.vid];return pl&&(pl.kind==="coffee")===coffee}).map(m=>({m,st:stockOf(m)})).filter(x=>x.st).sort((a,b)=>a.st.pct-b.st.pct);
+  if(!ldPick[kind])ldPick[kind]=new Set(rows.filter(x=>x.st.pct<(coffee?35:70)||x.st.empty).map(x=>x.m.id));
+  const pick=ldPick[kind], need={};
+  rows.filter(x=>pick.has(x.m.id)).forEach(({st})=>st.cells.forEach(c=>{if(c.level==null)return;const n=Math.max(0,c.cap-c.level);if(!n)return;
+    (need[c.name]||(need[c.name]={n:0,cells:0,unit:c.unit||"шт"})).n+=n;need[c.name].cells++}));
+  const list=Object.entries(need).sort((a,b)=>coffee?a[0].localeCompare(b[0],"ru"):b[1].n-a[1].n), total=list.reduce((a,[,v])=>a+v.n,0);
+  const fmtN=v=>v.unit==="г"&&v.n>=1000?(v.n/1000).toLocaleString("ru-RU",{maximumFractionDigits:1})+" кг":v.unit==="мл"&&v.n>=1000?(v.n/1000).toLocaleString("ru-RU",{maximumFractionDigits:1})+" л":v.n.toLocaleString("ru-RU")+" "+v.unit;
   return `${chipsHtml()}
-  <section class="panel"><div class="ph"><h2>Что взять с собой</h2><small>${ldPick.size} автом. · ${total} шт</small></div>
-    ${list.length?`<div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Ячеек</th><th class="r">Взять</th></tr></thead><tbody>${list.map(([n,v])=>`<tr><td>${esc(n)}</td><td class="r">${v.cells}</td><td class="r"><b>${v.n}</b></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Отметьте автоматы ниже</div>`}</section>
-  <section class="panel"><div class="ph"><h2>Автоматы</h2><small>сначала самые пустые</small></div>
-    <ul class="mtable">${rows.map(({m,st})=>`<li class="ldrow"><label class="chk"><input type="checkbox" data-pick="${m.id}" id="lp-${m.id}" ${ldPick.has(m.id)?"checked":""} aria-label="Грузить ${esc(m.name)}"></label>
-      <button type="button" class="mcard" data-open="${m.id}" data-tab="stock"><span class="t"><span class="n">${esc(m.name)}</span><span class="loc">${esc(m.loc)} · догрузить ${st.need} шт${st.empty?` · пусто ${st.empty}`:""}</span></span>
-      <span class="fill"><span class="fbar ${fillCls(st.pct)}"><i style="width:${st.pct}%"></i></span><small>${st.pct}%</small></span></button></li>`).join("")||`<li class="empty">Нет снековых автоматов с планограммой</li>`}</ul></section>`;
+  <section class="panel"><div class="ph"><h2>${coffee?"Кофейные автоматы":"Снековые автоматы"}</h2><small>сначала самые пустые · отметьте, куда едете</small></div>
+    <ul class="mtable">${rows.map(({m,st})=>`<li class="ldrow"><label class="chk"><input type="checkbox" data-pick="${m.id}" data-pk="${kind}" id="lp-${m.id}" ${pick.has(m.id)?"checked":""} aria-label="Грузить ${esc(m.name)}"></label>
+      <button type="button" class="mcard" data-open="${m.id}" data-tab="stock"><span class="t"><span class="n">${esc(m.name)}</span><span class="loc">${esc(m.loc)} · ${coffee?(st.low.length?"мало: "+st.low.map(n=>shortName(n).toLowerCase()).join(", "):"всего хватает"):"догрузить "+st.need+" шт"+(st.empty?` · пусто ${st.empty}`:"")}</span></span>
+      <span class="fill"><span class="fbar ${fillCls(st.pct)}"><i style="width:${st.pct}%"></i></span><small>${st.pct}%</small></span></button></li>`).join("")||`<li class="empty">Нет автоматов с планограммой</li>`}</ul></section>
+  <section class="panel"><div class="ph"><h2>Что взять с собой</h2><small>${pick.size} автом.${coffee?"":" · "+total+" шт"}</small></div>
+    ${list.length?`<ul class="rlist">${list.map(([n,v])=>`<li><span class="rl"><b>${esc(n)}</b><small>${coffee?"в "+v.cells+" автом.":"в "+v.cells+" ячейк."}</small></span><span class="rr"><b>${fmtN(v)}</b></span></li>`).join("")}</ul>`:`<div class="empty">Отметьте автоматы выше</div>`}</section>`;
 }
 
 /* ---------- раздел «Отчёты» ---------- */
@@ -1106,7 +1134,7 @@ function peSave(){const d=peDiff();const m=M.find(x=>x.id===PE.mid);
 document.addEventListener("click",e=>{
   const t=e.target.closest("button,[data-pecell]"); if(!t)return;
   if(t.dataset.go){if(route.startsWith("machine:")&&peDirty()&&!t.dataset.force){return confirmLeave(()=>{PE=null;go(t.dataset.go)})}PE=PE&&!peDirty()?null:PE;go(t.dataset.go);return}
-  if(t.dataset.open){if(t.dataset.tab){mTab=t.dataset.tab;LS.set("mTab",mTab)}go("machine:"+t.dataset.open);return}
+  if(t.dataset.open){if(t.dataset.tab){mTab=t.dataset.tab;LS.set("mTab",mTab)}if(!route.startsWith("machine:")){backTo=route;LS.set("backTo",backTo)}go("machine:"+t.dataset.open);return}
   if(t.dataset.mtab){mTab=t.dataset.mtab;LS.set("mTab",mTab);render();return}
   if(t.dataset.stab){sTab=t.dataset.stab;LS.set("sTab",sTab);render();return}
   if(t.dataset.pkind){pKind=t.dataset.pkind;LS.set("pKind",pKind);prodQ="";render();return}
@@ -1133,7 +1161,7 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("change",e=>{
   const c=e.target.dataset&&e.target.dataset.cost;if(c){const p=prodById(+c);if(p){p.cost=Math.max(0,+e.target.value||0);saveProducts()}}
-  const pk=e.target.dataset&&e.target.dataset.pick;if(pk){e.target.checked?ldPick.add(pk):ldPick.delete(pk);render()}
+  const pk=e.target.dataset&&e.target.dataset.pick;if(pk){const set=ldPick[e.target.dataset.pk];e.target.checked?set.add(pk):set.delete(pk);render()}
 });
 function confirmLeave(fn){
   $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true"><h3>Планограмма не сохранена</h3><p>Уйти и потерять изменения?</p>
@@ -1144,7 +1172,7 @@ function confirmLeave(fn){
 function render(){
   const r=route.split(":");
   if(r[0]==="overview"){chrome("Обзор");if(prefs.sel!=="all"&&!(M.find(m=>m.id===prefs.sel)))prefs.sel="all";renderOverview();return}
-  const html=r[0]==="machines"?pageMachines():r[0]==="machine"?pageMachine(r[1]):r[0]==="loading"?pageLoading():r[0]==="reports"?pageReports():r[0]==="settings"?pageSettings():null;
+  const html=r[0]==="machines"?pageMachines():r[0]==="machine"?pageMachine(r[1]):r[0]==="loading"?pageLoading("snack"):r[0]==="coffee"?pageLoading("coffee"):r[0]==="reports"?pageReports():r[0]==="settings"?pageSettings():null;
   if(html==null){route="overview";return render()}
   $("blocks").innerHTML=html;
 }

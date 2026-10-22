@@ -71,13 +71,27 @@
   function defaultPlanogram(m) {
     const byName = new Map(products().map((p) => [p.name, p.id])), cells = {};
     MENU[m.kind].forEach(([btn, name]) => { cells[btn] = { pid: byName.get(name), cap: m.kind === "coffee" ? null : (m.kind === "tcn" ? (TCN_CAP[btn] || 6) : 9) }; });
-    return { kind: m.kind === "coffee" ? "coffee" : "snack", cells };
+    if (m.kind !== "coffee") return { kind: "snack", cells };
+    return { kind: "coffee", cells, hoppers: defaultHoppers(cells) };
   }
-  function planograms() { const saved = ST.get("planograms", {}); const out = {}; MACHINES.forEach((m) => out[m.id] = saved[m.id] || defaultPlanogram(m)); return out; }
+  // вместимость бункеров/запаса кофейного автомата по ингредиентам
+  const HOP = { "Кофе зерно": 2000, "Молоко сухое": 1500, "Шоколад": 1500, "Сахар": 1500, "Чай чёрный листовой": 300, "Сироп ваниль": 1000,
+    /* вода из водопровода — запас не считаем */ "Стакан 250 мл": 400, "Крышка": 200, "Размешиватель": 500 };
+  function defaultHoppers(cells) {
+    const ps = products(), byId = new Map(ps.map((p) => [p.id, p])), out = {};
+    Object.values(cells).forEach((c) => ((byId.get(c.pid) || {}).components || []).forEach((x) => { const i = byId.get(x.iid); if (i && HOP[i.name]) out[i.id] = HOP[i.name]; }));
+    return out;
+  }
+  function planograms() { const saved = ST.get("planograms", {}); const out = {};
+    MACHINES.forEach((m) => { const p = saved[m.id] || defaultPlanogram(m); if (p.kind === "coffee" && !p.hoppers) p.hoppers = defaultHoppers(p.cells); out[m.id] = p; });
+    return out; }
   function loadings() {
-    const saved = ST.get("loadings", null); if (saved) return saved;
+    const saved = ST.get("loadings2", null); if (saved) return saved;
     const d = new Date(); d.setDate(d.getDate() - 2); d.setHours(7, 30, 0, 0);
     const pl = planograms(), out = [];
+    MACHINES.filter((m) => m.kind === "coffee").forEach((m) => { const t = new Date(d.getTime() - (m.id % 3) * 864e5), cells = {};
+      Object.entries(pl[m.id].hoppers || {}).forEach(([iid, cap]) => cells["i" + iid] = cap);
+      out.push({ id: "LC" + m.id, machine_id: m.id, time: t.toISOString(), cells, note: "Полная загрузка", user: "demo" }); });
     MACHINES.filter((m) => m.kind !== "coffee").forEach((m) => { const cells = {}; Object.entries(pl[m.id].cells).forEach(([b, c]) => cells[b] = c.cap); out.push({ id: "L" + m.id, machine_id: m.id, time: d.toISOString(), cells, note: "Полная загрузка", user: "demo" }); });
     return out;
   }
@@ -141,7 +155,7 @@
     if (path === "/planograms") return planograms();
     if (path.startsWith("/planograms/") && opt.method === "PUT") { const all = ST.get("planograms", {}); all[path.split("/")[2]] = opt.body; ST.set("planograms", all); return { ok: true }; }
     if (path === "/loadings") {
-      if (opt.method === "POST") { const l = loadings(); l.push({ id: "L" + Date.now(), user: "demo", time: new Date().toISOString(), ...opt.body }); ST.set("loadings", l); return { ok: true }; }
+      if (opt.method === "POST") { const l = loadings(); l.push({ id: "L" + Date.now(), user: "demo", time: new Date().toISOString(), ...opt.body }); ST.set("loadings2", l); return { ok: true }; }
       return loadings();
     }
     if (path === "/encashments") {
