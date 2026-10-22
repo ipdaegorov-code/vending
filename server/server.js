@@ -354,7 +354,10 @@ route("PUT", "/api/planograms/(\\d+)", "planograms.edit", async (req, res, me, a
   if (ms && !ms.some((m) => String(m.id) === mid)) throw bad("Такого автомата нет в вашем аккаунте", 404);
   const b = await readBody(req);
   if (!b || typeof b.cells !== "object" || !["snack", "coffee"].includes(b.kind)) throw bad("Неверная планограмма");
-  acc.planograms[mid] = { kind: b.kind, cells: b.cells, hoppers: b.hoppers || undefined, updated: new Date().toISOString(), by: me.login };
+  // прошлые версии храним: по ним старые продажи получают правильные названия и себестоимость
+  const prev = acc.planograms[mid], now = new Date().toISOString();
+  const history = prev ? [...(prev.history || []), { until: now, cells: prev.cells }].slice(-200) : [];
+  acc.planograms[mid] = { kind: b.kind, cells: b.cells, hoppers: b.hoppers || (prev && prev.hoppers) || undefined, updated: now, by: me.login, history };
   save(); audit(me, "planogram_saved", { machine: mid }); send(res, 200, { ok: true });
 });
 route("GET", "/api/loadings", "machines.view", async (req, res, me, acc) => send(res, 200, acc.loadings || []));

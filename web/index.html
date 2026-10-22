@@ -398,11 +398,16 @@ function setNow(){now=new Date();DAY0=new Date(now.getFullYear(),now.getMonth(),
 setNow();
 const dayDate=k=>new Date(DAY0.getTime()-k*864e5);
 const dkey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+// какой товар стоял на кнопке в момент продажи: текущая планограмма или её прошлая версия
+function planCellAt(m,btn,t){const pl=DB.planograms[m.vid];if(!pl)return null;
+  const h=(pl.history||[]).find(v=>t<new Date(v.until));return (h?h.cells:pl.cells)[btn]||null}
+// название продажи берём из нашей планограммы: в Вендисте товарные матрицы могут быть пустыми
+function saleName(m,btn,t,fallback){const c=planCellAt(m,btn,t);return (c&&c.pid&&prodById(c.pid)&&prodById(c.pid).name)||fallback||("Кнопка "+btn)}
 function toItems(rows){
   const byM=new Map(M.map(m=>[m.vid,m]));
   const out=[];
   rows.forEach(r=>{const m=byM.get(r.machine_id);if(!m)return;const t=new Date(r.time),n=Math.max(1,+r.qty||1);
-    for(let j=0;j<n;j++)out.push({id:r.id+"|"+j,t,name:r.name||("Кнопка "+r.button),price:r.price,cash:r.sell_type===1,pt:r.sell_type,card:null,layout:r.button,m})});
+    for(let j=0;j<n;j++)out.push({id:r.id+"|"+j,t,name:saleName(m,r.button,t,r.name),price:r.price,cash:r.sell_type===1,pt:r.sell_type,card:null,layout:r.button,m})});
   return out;
 }
 let byDay={};
@@ -417,6 +422,7 @@ async function loadAll(progress){
   M=ms.map(v=>({vid:v.id,id:"V"+v.id,name:v.name,model:v.model,loc:v.division||v.address,addr:v.address,terminal_id:v.terminal_id,
     type:/кофе|coffee|kikko|opera|concerto|maestro|necta|bianchi/i.test(v.model+" "+v.name)?"coffee":"snack",
     state:v.state,last_sale:v.last_sale?new Date(v.last_sale):null,last_online:v.last_online?new Date(v.last_online):null}));
+  await loadDB(); // планограммы нужны раньше продаж: по ним продажам даются названия
   RAW={};
   // 30 дней кусками по 10 дней, чтобы видеть прогресс
   const parts=[[29,20],[19,10],[9,0]];let done=0;
@@ -425,7 +431,6 @@ async function loadAll(progress){
     addSales(toItems(await api("/sales",{from:from.toISOString(),to:to.toISOString()})));
     progress&&progress(++done,parts.length);
   }
-  await loadDB();
   index();loadedAt=new Date();
 }
 async function refreshToday(){
@@ -940,7 +945,7 @@ function pageLoading(kind){
 
 /* ---------- раздел «Отчёты» ---------- */
 let rp=LS.get("rp")||7;
-function costOf(s){const pl=DB.planograms[s.m.vid];const c=pl&&pl.cells[s.layout];const p=c?prodById(c.pid):DB.products.find(x=>x.name===s.name);return costOfProduct(p)}
+function costOf(s){const c=planCellAt(s.m,s.layout,s.t);const p=c?prodById(c.pid):DB.products.find(x=>x.name===s.name);return costOfProduct(p)}
 function pageReports(){
   chrome("Отчёты");
   const ks=rp===1?[0]:rp===-1?[1]:Array.from({length:rp},(_,i)=>i);
@@ -1210,7 +1215,8 @@ function peSave(){const d=peDiff();const m=M.find(x=>x.id===PE.mid);
     <div class="row-btns"><button type="button" class="btn" id="psNo">Вернуться</button><button type="button" class="btn primary" id="psYes">Сохранить</button></div></div></div>`;
   const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});$("psNo").onclick=close;
   $("psYes").onclick=async()=>{try{const old=JSON.parse(PE.saved);const body={kind:PE.kind,cells:PE.cells};
-      await api("/planograms/"+m.vid,null,{method:"PUT",body});DB.planograms[m.vid]=JSON.parse(JSON.stringify(body));
+      await api("/planograms/"+m.vid,null,{method:"PUT",body});const prev=DB.planograms[m.vid]||{};
+      DB.planograms[m.vid]={...JSON.parse(JSON.stringify(body)),hoppers:prev.hoppers,history:[...(prev.history||[]),{until:new Date().toISOString(),cells:old}]};
       const changed={};Object.keys(PE.cells).forEach(k=>{if((old[k]||{}).pid!==PE.cells[k].pid&&PE.kind!=="coffee")changed[k]=0});
       if(Object.keys(changed).length){await api("/loadings",null,{method:"POST",body:{machine_id:m.vid,cells:changed,note:"Смена товара в ячейках "+Object.keys(changed).join(", ")}});DB.loadings=await api("/loadings")}
       PE.saved=JSON.stringify(PE.cells);PE.hist=[];close();toast("Планограмма сохранена");peRender()}catch(e){toast("Не сохранилось: "+e.message)}};

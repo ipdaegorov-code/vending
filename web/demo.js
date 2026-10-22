@@ -168,7 +168,9 @@
     }
     if (path === "/products") { if (opt.method === "PUT") { ST.set("products3", opt.body); return { ok: true }; } return products(); }
     if (path === "/planograms") return planograms();
-    if (path.startsWith("/planograms/") && opt.method === "PUT") { const all = ST.get("planograms", {}); all[path.split("/")[2]] = opt.body; ST.set("planograms", all); return { ok: true }; }
+    if (path.startsWith("/planograms/") && opt.method === "PUT") { const id = path.split("/")[2], all = ST.get("planograms", {}), prev = all[id] || planograms()[id];
+      all[id] = { ...opt.body, hoppers: opt.body.hoppers || (prev && prev.hoppers), history: [...((prev && prev.history) || []), { until: new Date().toISOString(), cells: prev.cells }].slice(-200) };
+      ST.set("planograms", all); return { ok: true }; }
     if (path === "/loadings") {
       if (opt.method === "POST") { const l = loadings(); l.push({ id: "L" + Date.now(), user: "demo", time: new Date().toISOString(), ...opt.body }); ST.set("loadings2", l); return { ok: true }; }
       return loadings();
