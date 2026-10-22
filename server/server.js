@@ -261,7 +261,7 @@ function range(q) {
 const bad = (msg, code = 400) => Object.assign(new Error(msg), { code });
 // чековые настройки по умолчанию для всех товаров аккаунта
 const FISCAL_DEFAULT = { vat: "none", subject: "commodity", tax_system: "usn_income_outcome" };
-const VATS = ["none", "0", "5", "7", "10", "20", "22", "5/105", "7/107", "10/110", "20/120", "22/122"];
+const VATS = ["none", "0", "5", "7", "10", "22"];
 const SUBJECTS = ["commodity", "commodity_marked", "excise", "service"];
 const TAX_SYSTEMS = ["osn", "usn_income", "usn_income_outcome", "esn", "patent"];
 const accountView = (a) => ({
