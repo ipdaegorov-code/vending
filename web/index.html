@@ -230,6 +230,7 @@ const LS={get(k){try{return JSON.parse(localStorage.getItem("vd."+k))}catch(e){r
 class NeedLogin extends Error{}
 let me=null;
 async function api(path,params,opt={}){
+  if(window.DEMO_API)return window.DEMO_API(path,params,opt); // прототип с выдуманными данными
   const url="/api"+path+(params?"?"+new URLSearchParams(params):"");
   const r=await fetch(url,{method:opt.method||"GET",credentials:"same-origin",headers:opt.body?{"Content-Type":"application/json"}:{},body:opt.body?JSON.stringify(opt.body):undefined});
   if(r.status===401&&path!=="/login")throw new NeedLogin();
@@ -610,10 +611,10 @@ async function boot(){
   try{await loadAll((d,n)=>{const p=$("prog");if(p)p.style.width=(d/n*100)+"%"});ready()}
   catch(e){if(e instanceof NeedLogin)showLogin();else $("blocks").innerHTML=`<div class="panel loading">Не удалось загрузить: ${esc(e.message)}<br><br><button class="btn" type="button" onclick="location.reload()">Попробовать снова</button></div>`}
 }
-function stamp(){$("fresh").textContent=(me&&me.test?"Тестовый режим · только чтение · ":"Вендиста · ")+"обновлено в "+loadedAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}
+function stamp(){$("fresh").textContent=(me&&me.demo?"Демо-данные · ":me&&me.test?"Тестовый режим · только чтение · ":"Вендиста · ")+"обновлено в "+loadedAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}
 let timer;
 function ready(){
-  $("topBtns").hidden=false;
+  $("topBtns").hidden=false;$("logout").hidden=!!(me&&me.demo);
   if(prefs.sel!=="all"&&!M.some(m=>m.id===prefs.sel))prefs.sel="all";
   stamp();render();
   clearInterval(timer);timer=setInterval(async()=>{if(document.hidden)return;try{await refreshToday();stamp();render()}catch(e){}},180000);
