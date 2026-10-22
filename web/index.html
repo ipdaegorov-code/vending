@@ -146,7 +146,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(20px,3.4vw,28px);m
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line)}
 td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
-td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:14px}
 .share{height:4px;border-radius:2px;background:var(--accent);margin-top:4px;opacity:.55}
 .pay{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
 .pay.cash{background:var(--warn-soft);color:var(--warn);border-color:transparent}
@@ -319,6 +319,16 @@ tr.refunded .nm{text-decoration:line-through}
 .cbtns li{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:14px;min-width:0}
 .cbtns b{font-family:var(--mono);color:var(--muted)}
 .cbtns span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* суммы — обычным шрифтом с ровными цифрами: в моноширинном «26 920» читается как два числа */
+.num,.sum .v,.kpi .v,.mnum .num{font-family:var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.rlist{list-style:none;margin:0;padding:0 16px 10px}
+.rlist li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.rlist li:last-child{border-bottom:0}
+.rl,.rr{display:flex;flex-direction:column;min-width:0}
+.rr{align-items:flex-end;text-align:right;flex:0 0 auto}
+.rl b{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis}
+.rr b{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rl small,.rr small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:13.5px}
 .btn.ghost{border-color:transparent;background:transparent}
 .btn:disabled{opacity:.45;cursor:default}
@@ -884,10 +894,10 @@ function pageReports(){
     <div><span class="l">Безнал</span><span class="v">${rub(Math.round(tot-cash))}</span><span class="s">${pct(tot-cash,tot)} выручки</span></div>
     <div><span class="l">Наличные</span><span class="v">${rub(Math.round(cash))}</span><span class="s">${pct(cash,tot)} выручки</span></div>
   </section>
-  <section class="panel"><div class="ph"><h2>По автоматам</h2></div><div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Автомат</th><th class="r">Шт</th><th class="r">Выручка</th><th class="r">Прибыль</th></tr></thead><tbody>
-    ${[...byM].sort((a,b)=>b[1].v-a[1].v).map(([m,a])=>`<tr><td>${esc(m.name)}<div class="card">нал ${rub(Math.round(a.cash))}</div></td><td class="r">${a.n}</td><td class="r">${rub(Math.round(a.v))}</td><td class="r">${rub(Math.round(a.v-a.cost))}</td></tr>`).join("")}</tbody></table></div></section>
-  <section class="panel"><div class="ph"><h2>По товарам</h2><small>наценка = прибыль / себестоимость</small></div><div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Шт</th><th class="r">Выручка</th><th class="r">Наценка</th></tr></thead><tbody>
-    ${[...byP].sort((a,b)=>b[1].v-a[1].v).map(([n,a])=>`<tr><td>${esc(n)}</td><td class="r">${a.n}</td><td class="r">${rub(Math.round(a.v))}</td><td class="r">${pct(a.v-a.cost,a.cost)}</td></tr>`).join("")}</tbody></table></div></section>
+  <section class="panel"><div class="ph"><h2>По автоматам</h2><small>выручка · прибыль</small></div><ul class="rlist">
+    ${[...byM].sort((a,b)=>b[1].v-a[1].v).map(([m,a])=>`<li><span class="rl"><b>${esc(m.name)}</b><small>${a.n} шт · наличными ${rub(Math.round(a.cash))}</small></span><span class="rr"><b>${rub(Math.round(a.v))}</b><small>прибыль ${rub(Math.round(a.v-a.cost))}</small></span></li>`).join("")}</ul></section>
+  <section class="panel"><div class="ph"><h2>По товарам</h2><small>выручка · наценка</small></div><ul class="rlist">
+    ${[...byP].sort((a,b)=>b[1].v-a[1].v).map(([n,a])=>`<li><span class="rl"><b>${esc(n)}</b><small>${a.n} шт · прибыль ${rub(Math.round(a.v-a.cost))}</small></span><span class="rr"><b>${rub(Math.round(a.v))}</b><small>наценка ${pct(a.v-a.cost,a.cost)}</small></span></li>`).join("")}</ul></section>
   <section class="panel"><div class="ph"><h2>Инкассации</h2></div>${en==null?`<div class="empty">Загружаю…</div>`:en.length?`<ul class="evlist">${en.map(e=>{const m=M.find(x=>x.vid===e.machine_id);return `<li><span class="st"></span><span>${esc(m?m.name:"")}: <b>${rub(Math.round(e.sum))}</b></span><time>${new Date(e.time).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</time></li>`}).join("")}</ul>`:`<div class="empty">Инкассаций за период нет</div>`}</section>`;
 }
 let enCache={};
