@@ -11,7 +11,10 @@ const env = process.env;
 const PORT = +env.PORT || 3000;
 const VENDISTA = (env.VENDISTA_URL || "https://api.vendista.ru:99").replace(/\/$/, "");
 const SECRET = env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
-const ALLOW_REFUNDS = env.ALLOW_REFUNDS === "1";
+// ТЕСТОВЫЙ РЕЖИМ по умолчанию: сервер только ЧИТАЕТ из Вендисты.
+// Любые изменения (возвраты и т.п.) возможны только при WRITE_MODE=on в .env — включается вручную.
+const WRITE_MODE = env.WRITE_MODE === "on";
+const ALLOW_REFUNDS = WRITE_MODE && env.ALLOW_REFUNDS === "1";
 const DATA_DIR = env.DATA_DIR || path.join(__dirname, "data");
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -79,6 +82,7 @@ async function vendistaToken(force) {
   return vToken;
 }
 async function vget(p, params = {}, method = "GET") {
+  if (method !== "GET" && !WRITE_MODE) throw new Error("Тестовый режим: изменения в Вендисте запрещены");
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await vendistaToken(attempt > 0);
     const u = `${VENDISTA}${p}?` + new URLSearchParams({ ...params, token });
@@ -194,7 +198,7 @@ const routes = {
   },
   "POST /api/logout": async (req, res) =>
     send(res, 200, { ok: true }, { "Set-Cookie": "vs=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0" }),
-  "GET /api/me": async (req, res, me) => send(res, 200, { login: me.login, role: me.role, refunds: ALLOW_REFUNDS && me.role === "owner" }),
+  "GET /api/me": async (req, res, me) => send(res, 200, { login: me.login, role: me.role, test: !WRITE_MODE, refunds: ALLOW_REFUNDS && me.role === "owner" }),
   "GET /api/machines": async (req, res) => send(res, 200, await machines()),
   "GET /api/sales": async (req, res, me, q) => { const [f, t] = range(q); send(res, 200, await sales(f, t)); },
   "GET /api/transactions": async (req, res, me, q) => { const [f, t] = range(q); send(res, 200, await transactions(f, t)); },
@@ -229,4 +233,4 @@ http.createServer(async (req, res) => {
     return send(res, 403, { error: "Запрос с чужого сайта" });
   try { await h(req, res, me, url.searchParams); }
   catch (e) { console.error(key, e.message); send(res, e.code || 502, { error: e.message }); }
-}).listen(PORT, () => console.log("Вендинг: сервер на порту " + PORT));
+}).listen(PORT, () => console.log("Вендинг: сервер на порту " + PORT + (WRITE_MODE ? " (изменения РАЗРЕШЕНЫ)" : " (тестовый режим: только чтение)")));

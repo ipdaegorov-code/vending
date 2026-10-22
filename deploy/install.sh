@@ -48,10 +48,9 @@ while :; do
   rm -f /tmp/vt.json; echo "Вендиста не пустила (код $CODE). Проверьте логин и пароль."
 done
 
-say "4. Возвраты на карту из приложения"
-R=$(ask "Разрешить возвраты из приложения? (да/нет)")
-case "$R" in да|Да|ДА|д|Д|y|Y|yes|Yes) REF=1 ;; *) REF=0 ;; esac
-
+say "4. Режим работы"
+echo "Сервер ставится в ТЕСТОВОМ режиме: только чтение данных из Вендисты."
+echo "Возвраты и любые изменения в Вендисте заблокированы, пока вы сами их не включите."
 umask 077
 cat > .env <<EOF
 DOMAIN=$DOMAIN
@@ -59,7 +58,8 @@ APP_USERS='$APP_LOGIN:$SALT:$HASH:owner'
 SESSION_SECRET=$(openssl rand -hex 32)
 VENDISTA_LOGIN='$VL'
 VENDISTA_PASSWORD='$VP'
-ALLOW_REFUNDS=$REF
+WRITE_MODE=off
+ALLOW_REFUNDS=0
 EOF
 chmod 600 .env
 unset VP
