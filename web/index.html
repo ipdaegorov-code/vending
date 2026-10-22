@@ -903,18 +903,21 @@ function pageReports(){
 let enCache={};
 
 /* ---------- раздел «Настройки» ---------- */
-let sTab=LS.get("sTab")||"products", prodQ="";
+let sTab=LS.get("sTab")||"products", prodQ="", pKind=LS.get("pKind")||"item";
 function pageSettings(){
   chrome("Настройки");
-  const tabs=[["products","Товары"],["plans","Планограммы"],["other","Группы и экран"]];
+  const tabs=[["products","Каталог"],["plans","Планограммы"],["other","Группы и экран"]];
   let body="";
   if(sTab==="products"){
     const lastPrice=new Map();Object.values(RAW).forEach(s=>lastPrice.set(s.name,s.price));
-    const q=prodQ.trim().toLowerCase(), ps=DB.products.filter(p=>!q||p.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"ru"));
-    body=`<div class="ph"><h2>Товары и себестоимость</h2><small>${DB.products.length} шт</small></div>
-      <div style="padding:0 16px 10px;display:flex;gap:8px"><input class="search2" id="prodQ" type="search" placeholder="Поиск товара" value="${esc(prodQ)}" autocomplete="off"><button type="button" class="btn" id="prodAdd">+ Товар</button></div>
-      <div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>Товар</th><th class="r">Цена в автомате</th><th class="r">Себестоимость</th></tr></thead><tbody>
-      ${ps.map(p=>{const pr=lastPrice.get(p.name);return `<tr><td>${esc(p.name)}${p.kind==="recipe"?`<div class="card">рецепт</div>`:""}</td><td class="r">${pr!=null?pr+" ₽":"—"}</td>
+    const kindOf=p=>p.kind==="recipe"?"recipe":"item";
+    const q=prodQ.trim().toLowerCase(), ps=DB.products.filter(p=>kindOf(p)===pKind&&(!q||p.name.toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name,"ru"));
+    const nI=DB.products.filter(p=>kindOf(p)==="item").length,nR=DB.products.length-nI;
+    body=`<div class="ph"><h2>${pKind==="item"?"Товары для снековых":"Рецепты для кофейных"}</h2>
+        <div class="seg" role="group" aria-label="Вид"><button type="button" data-pkind="item" aria-pressed="${pKind==="item"}">Товары ${nI}</button><button type="button" data-pkind="recipe" aria-pressed="${pKind==="recipe"}">Рецепты ${nR}</button></div></div>
+      <div style="padding:0 16px 10px;display:flex;gap:8px"><input class="search2" id="prodQ" type="search" placeholder="${pKind==="item"?"Поиск товара":"Поиск рецепта"}" value="${esc(prodQ)}" autocomplete="off"><button type="button" class="btn" id="prodAdd">${pKind==="item"?"+ Товар":"+ Рецепт"}</button></div>
+      <div class="tblwrap" style="padding:0 16px 14px;max-height:none"><table><thead><tr><th>${pKind==="item"?"Товар":"Рецепт"}</th><th class="r">Цена в автомате</th><th class="r">Себестоимость</th></tr></thead><tbody>
+      ${ps.map(p=>{const pr=lastPrice.get(p.name);return `<tr><td>${esc(p.name)}</td><td class="r">${pr!=null?pr+" ₽":"—"}</td>
         <td class="r"><input class="costin" type="number" inputmode="decimal" min="0" step="0.01" id="cost-${p.id}" data-cost="${p.id}" value="${p.cost??""}" aria-label="Себестоимость ${esc(p.name)}"> ₽</td></tr>`}).join("")}</tbody></table></div>
       <p class="txnote" style="padding:0 16px 14px">Цена берётся из продаж — её задаёт автомат. Себестоимость нужна для прибыли в отчётах.</p>`;
   } else if(sTab==="plans"){
@@ -935,13 +938,13 @@ function pageSettings(){
 }
 async function saveProducts(){try{await api("/products",null,{method:"PUT",body:DB.products});toast("Сохранено")}catch(e){toast("Не сохранилось: "+e.message)}}
 function openProductAdd(){
-  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><form class="sheet" id="padd"><h3>Новый товар</h3>
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><form class="sheet" id="padd"><h3>${pKind==="recipe"?"Новый рецепт":"Новый товар"}</h3><p>${pKind==="recipe"?"Будет доступен только в планограммах кофейных автоматов.":"Будет доступен только в планограммах снековых автоматов."}</p>
     <label class="fl" for="pa-name">Название<input id="pa-name" required class="search2"></label>
     <label class="fl" for="pa-cost">Себестоимость, ₽<input id="pa-cost" type="number" step="0.01" min="0" class="search2"></label>
     <div class="row-btns"><button type="button" class="btn" id="paNo">Отмена</button><button class="btn primary" type="submit">Добавить</button></div></form></div>`;
   const close=()=>{$("sheetRoot").innerHTML=""};$("paNo").onclick=close;$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
   $("padd").addEventListener("submit",async e=>{e.preventDefault();const id=Math.max(0,...DB.products.map(p=>p.id))+1;
-    DB.products.push({id,name:$("pa-name").value.trim(),cost:+$("pa-cost").value||0,kind:"item"});await saveProducts();close();render()});
+    DB.products.push({id,name:$("pa-name").value.trim(),cost:+$("pa-cost").value||0,kind:pKind});await saveProducts();close();render()});
   $("pa-name").focus();
 }
 
@@ -969,7 +972,7 @@ function planEditorHtml(m){
     <div class="pe-top"><div class="seg" role="group" aria-label="Режим">${coffee?"":`<button type="button" data-pemode="assign" aria-pressed="${pe.mode==="assign"}">Товары</button><button type="button" data-pemode="cap" aria-pressed="${pe.mode==="cap"}">Вместимость</button>`}</div>
       <div class="row-btns"><button type="button" class="btn ghost" id="peUndo" ${pe.hist.length?"":"disabled"}>↶ Отменить</button><button type="button" class="btn primary" id="peSave" ${diff?"":"disabled"}>${diff?`Сохранить (${diff})`:"Сохранено"}</button></div></div>
     ${pe.mode==="assign"?`<div class="brushes">${used.map(pid=>`<button type="button" class="chip" style="--h:${h(pid)}" data-brush="${pid}" aria-pressed="${pe.brush===pid}"><span class="sw"></span>${esc(shortName(prodName(pid)))} <small>${cellsOf(pid).length}</small></button>`).join("")}
-      <button type="button" class="chip eraser" data-brush="0" aria-pressed="${pe.brush===0}"><span class="sw"></span>Освободить</button><button type="button" class="chip add" id="peAdd">+ Товар</button></div>
+      <button type="button" class="chip eraser" data-brush="0" aria-pressed="${pe.brush===0}"><span class="sw"></span>Освободить</button><button type="button" class="chip add" id="peAdd">${coffee?"+ Рецепт":"+ Товар"}</button></div>
       <p class="hint2">${pe.brush?`<b>${esc(prodName(pe.brush))}</b>: нажмите на ${coffee?"кнопки":"ячейки или проведите пальцем по полке"}. Ячейки: ${cellsOf(pe.brush).join(", ")||"—"}`:pe.brush===0?"<b>Освободить</b>: нажмите на ячейки":"Выберите товар выше"}</p>`
       :`<p class="hint2">Нажмите на ячейку, чтобы изменить вместимость. При смене товара вместимость сохраняется.</p>`}
     <div class="pe-machine" id="peMachine">${Object.keys(shelves).sort(numSort).map(k=>`<div class="pe-shelf"><span class="pe-sl">${coffee?"":k==="0"?"1":k}</span><div class="pe-row">${shelves[k].map(b=>{const c=pe.cells[b],ch=JSON.stringify(c)!==JSON.stringify((JSON.parse(pe.saved)[b])||{});
@@ -996,8 +999,9 @@ function peCap(b){const c=PE.cells[b];let v=c.cap||1;
   $("cShelf").onclick=()=>{PE.hist.push(JSON.stringify(PE.cells));Object.keys(PE.cells).filter(k=>shelfOf(k)===shelfOf(b)).forEach(k=>PE.cells[k].cap=v);close();peRender()};
 }
 function peAddProduct(){const used=new Set(Object.values(PE.cells).map(c=>c.pid));
-  const draw=q=>DB.products.filter(p=>!used.has(p.id)&&(!q||p.name.toLowerCase().includes(q.toLowerCase()))).map(p=>`<li><button type="button" data-peadd="${p.id}"><span>${esc(p.name)}</span></button></li>`).join("")||`<li class="empty">Нет товаров. Добавьте в Настройки → Товары.</li>`;
-  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:85vh;overflow:auto"><h3>Добавить товар в автомат</h3>
+  const want=PE.kind==="coffee"?"recipe":"item";
+  const draw=q=>DB.products.filter(p=>(p.kind==="recipe"?"recipe":"item")===want&&!used.has(p.id)&&(!q||p.name.toLowerCase().includes(q.toLowerCase()))).map(p=>`<li><button type="button" data-peadd="${p.id}"><span>${esc(p.name)}</span></button></li>`).join("")||`<li class="empty">${q?"Ничего не нашлось.":want==="recipe"?"Все рецепты уже в этом автомате.":"Все товары уже в этом автомате."} Новый можно добавить в Настройки → Каталог → ${want==="recipe"?"Рецепты":"Товары"}.</li>`;
+  $("sheetRoot").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" style="max-height:85vh;overflow:auto"><h3>${PE.kind==="coffee"?"Добавить рецепт":"Добавить товар"}</h3>
     <input class="search2" id="peQ" type="search" placeholder="Поиск" autocomplete="off"><ul class="cat2" id="peCat">${draw("")}</ul></div></div>`;
   const close=()=>{$("sheetRoot").innerHTML=""};$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim")close()});
   $("peQ").oninput=e=>$("peCat").innerHTML=draw(e.target.value);
@@ -1024,6 +1028,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.open){if(t.dataset.tab){mTab=t.dataset.tab;LS.set("mTab",mTab)}go("machine:"+t.dataset.open);return}
   if(t.dataset.mtab){mTab=t.dataset.mtab;LS.set("mTab",mTab);render();return}
   if(t.dataset.stab){sTab=t.dataset.stab;LS.set("sTab",sTab);render();return}
+  if(t.dataset.pkind){pKind=t.dataset.pkind;LS.set("pKind",pKind);prodQ="";render();return}
   if(t.dataset.rp){rp=+t.dataset.rp;LS.set("rp",rp);render();return}
   if(t.dataset.loadm){openLoading(M.find(x=>x.id===t.dataset.loadm));return}
   if(t.id==="prodAdd"){openProductAdd();return}
